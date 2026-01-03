@@ -177,7 +177,7 @@ public class Renderer : IDisposable
 
 		// create drawing resources
 		mesh = new Mesh<PosTexColVertex, ushort>(app.GraphicsDevice);
-		material = new(new TexturedShader(app.GraphicsDevice));
+		material = app.GraphicsDevice.Defaults.TexturedMaterial.Clone();
 		ImGui.SetCurrentContext(nint.Zero);
 	}
 

@@ -175,9 +175,8 @@ public class GhostFrog : Actor
 		{
 			Velocity = Calc.Approach(Velocity, Vector2.Zero, 300 * Time.Delta);
 
-			Facing = MathF.Sign(playerPosition.X - Position.X);
-			if (Facing == 0)
-				Facing = 1;
+			var sign = MathF.Sign(playerPosition.X - Position.X);
+			Facing = sign == 0 ? Signs.Positive : sign;
 			time += Time.Delta;
 			yield return 0;
 		}

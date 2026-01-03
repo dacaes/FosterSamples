@@ -22,7 +22,7 @@ public class Actor
 	public Vector2 Velocity;
 	public Hitbox Hitbox;
 	public Masks Mask = Masks.None;
-	public Facing Facing = Facing.Right;
+	public Signs Facing = Signs.Positive;
 	public Vector2 Squish = Vector2.One;
 	public Vector2 Shift = Vector2.Zero;
 	public int Depth = 0;

@@ -44,7 +44,7 @@ class Game : App
 		batcher = new(GraphicsDevice);
 		texture = new Texture(GraphicsDevice, new Image(Path.Join("Assets", "frog_knight.png")));
 		font = new SpriteFont(GraphicsDevice, Path.Join("Assets", "monogram.ttf"), 32);
-		material = new Material(new TexturedShader(GraphicsDevice));
+		material = GraphicsDevice.Defaults.TexturedMaterial.Clone();
 
 		// We only need to initialize indices once, since we're only drawing quads
 		var indexArray = new int[DrawBatchSize * 6];

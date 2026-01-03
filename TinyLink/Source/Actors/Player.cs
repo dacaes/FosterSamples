@@ -218,7 +218,7 @@ public class Player : Actor
 		if (hitbox != null)
 		{
 			var it = hitbox.Value;
-			if (Facing == Facing.Left)
+			if (Facing == Signs.Negative)
 				it.X = -(it.X + it.Width);
 			it += Position;
 
