@@ -9,12 +9,13 @@ public class Actor
 	[Flags]
 	public enum Masks
 	{
-		None	  = 0,
-		Solid	 = 1 << 0,
-		Jumpthru  = 1 << 1,
-		Player	= 1 << 2,
-		Enemy	 = 1 << 3,
-		Hazard	= 1 << 4,
+		None = 0,
+		Solid = 1 << 0,
+		Jumpthru = 1 << 1,
+		Player = 1 << 2,
+		Enemy = 1 << 3,
+		Hazard = 1 << 4,
+		Rope = 1 << 5,
 	}
 
 	public Game Game = null!;

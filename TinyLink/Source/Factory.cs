@@ -116,6 +116,7 @@ public static class Factory
 		// Add Actor Types
 		Register('-', Entry.AsActor<Jumpthru>("jumpthru"));
 		Register('P', Entry.AsActor<Player>("player", new Point2(4, 8), true));
+		Register('P', Entry.AsActor<Player>("player", new Point2(2, 8), true));
 		Register('B', Entry.AsActor<Bramble>("bramble", new Point2(4, 8)));
 		Register('S', Entry.AsActor<Spitter>("spitter", new Point2(4, 8)));
 		Register('M', Entry.AsActor<Mosquito>("mosquito", new Point2(4, 4)));
@@ -124,6 +125,8 @@ public static class Factory
 		Register('b', Entry.AsActor<Blob>("blob", new Point2(4, 8)));
 		Register('F', Entry.AsActor<GhostFrog>("ghostfrog", new Point2(4, 8)));
 		Register('T', Entry.AsActor<TitleText>("heart", new Point2(4, 4)));
+		Register('I', Entry.AsActor<Rope>("rope"));
+		Register('L', Entry.AsActor<Ladder>("ladder"));
 	}
 
 	public static void Clear()
