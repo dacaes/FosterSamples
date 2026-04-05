@@ -115,7 +115,6 @@ public static class Factory
 
 		// Add Actor Types
 		Register('-', Entry.AsActor<Jumpthru>("jumpthru"));
-		Register('P', Entry.AsActor<Player>("player", new Point2(4, 8), true));
 		Register('P', Entry.AsActor<Player>("player", new Point2(2, 8), true));
 		Register('B', Entry.AsActor<Bramble>("bramble", new Point2(4, 8)));
 		Register('S', Entry.AsActor<Spitter>("spitter", new Point2(4, 8)));
