@@ -39,7 +39,7 @@ public class Player : Actor
 	private float jumpTimer = 0;
 	private bool grounded = false;
 	private bool ducking = false;
-	private bool attackImpulseDone = false;
+	private bool attackImpulseOpportunityConsumed = false;
 
 	private StateMachine<States> fsm = new();
 
@@ -108,7 +108,7 @@ public class Player : Actor
 			{
 				// if (grounded)
 					// StopX();
-				attackImpulseDone = false;
+				attackImpulseOpportunityConsumed = false;
 			},
 			onUpdate: () => { AttackState(); }
 		));
@@ -140,6 +140,7 @@ public class Player : Actor
 
 		fsm.AddTransition(States.Attack, States.Climbing, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && Controls.Move.IntValue.Y < 0); // can cancel attack and grab climbable
 
+		fsm.AddTransition(States.Climbing, States.Airborne, condition: () => !grounded && Controls.Jump.Down && Controls.Move.IntValue.Y > 0);  // Step down
 		fsm.AddTransition(States.Climbing, States.Normal, condition: () => grounded && (MathF.Abs(Controls.Move.IntValue.X) > 0 || Controls.Move.IntValue.Y > 0));  // in the ground and pressing down or moving
 
 		fsm.AddTransition(States.Airborne, States.Normal, condition: () => grounded);
@@ -267,7 +268,14 @@ public class Player : Actor
 		// Start jumping
 		if (Controls.Jump.ConsumePress())
 		{
-			StartJump();
+			// Step down jumpthru or a ladder
+			if(Controls.Move.IntValue.Y > 0 && OverlapsAny(Point2.Down, Masks.Jumpthru | Masks.Ladder))
+			{
+				Position += Point2.Down;
+				fsm.ActivateTrigger("Airborne");
+			}
+			else
+				StartJump();
 		}
 	}
 
@@ -278,7 +286,8 @@ public class Player : Actor
 		StopX();
 		Velocity.X = input * MaxAirSpeed;
 		jumpTimer = JumpTime;
-		Facing = input;
+		if(input != 0)
+			Facing = input;
 		fsm.ActivateTrigger("Airborne");
 	}
 
@@ -357,11 +366,10 @@ public class Player : Actor
 		{
 			hitbox = new RectInt(8, -8, 16, 8);
 			
-			if(!attackImpulseDone)
-			{
-				attackImpulseDone = true;
+			if(grounded && !attackImpulseOpportunityConsumed)
 				Velocity.X = Facing * 60;
-			}
+				
+			attackImpulseOpportunityConsumed = true;
 		}
 
 		if (hitbox != null)
