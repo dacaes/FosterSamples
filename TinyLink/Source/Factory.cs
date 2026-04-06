@@ -125,6 +125,7 @@ public static class Factory
 		Register('F', Entry.AsActor<GhostFrog>("ghostfrog", new Point2(4, 8)));
 		Register('T', Entry.AsActor<TitleText>("heart", new Point2(4, 4)));
 		Register('I', Entry.AsActor<Rope>("rope"));
+		Register('|', Entry.AsActor<Ivy>("ivy"));
 		Register('L', Entry.AsActor<Ladder>("ladder"));
 	}
 

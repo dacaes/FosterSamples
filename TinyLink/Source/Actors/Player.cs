@@ -39,6 +39,7 @@ public class Player : Actor
 	private float jumpTimer = 0;
 	private bool grounded = false;
 	private bool ducking = false;
+	private bool attackImpulseDone = false;
 
 	private StateMachine<States> fsm = new();
 
@@ -105,8 +106,9 @@ public class Player : Actor
 		fsm.AddState(States.Attack, new State<States>(
 			onEnter: () =>
 			{
-				if (grounded)
-					StopX();
+				// if (grounded)
+					// StopX();
+				attackImpulseDone = false;
 			},
 			onUpdate: () => { AttackState(); }
 		));
@@ -354,6 +356,12 @@ public class Player : Actor
 		else if (stateDuration < 0.50f)
 		{
 			hitbox = new RectInt(8, -8, 16, 8);
+			
+			if(!attackImpulseDone)
+			{
+				attackImpulseDone = true;
+				Velocity.X = Facing * 60;
+			}
 		}
 
 		if (hitbox != null)
