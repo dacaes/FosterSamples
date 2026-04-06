@@ -8,18 +8,18 @@ public class Player : Actor
 	public enum States
 	{
 		Normal,
-		LandOnRope,
-		Rope,
+		LandOnClimbable,
+		Climbing,
 		Airborne,
 		Attack,
 		Hurt,
 		Start
 	}
 
-	public const int MaxHealth = 1;
+	public const int MaxHealth = 4;
 	private const float MaxGroundSpeed = 60;
 	private const float MaxAirSpeed = 70;
-	private const float MaxRopeSpeed = 30;
+	private const float MaxClimbingSpeed = 30;
 	private const float GroundAccel = 500;
 	private const float AirAccel = 100;
 	private const float Friction = 800;
@@ -58,27 +58,39 @@ public class Player : Actor
 			onExit: () => ducking = false
 		));
 
-		// Land On Rope: Just to do a cool effect when you transition from Airborne to Rope
-		fsm.AddState(States.LandOnRope, new State<States>(
+		// Land On Climbable: Just to do a cool effect when you transition from Airborne to climcable (e.g. Rope, Ladder)
+		fsm.AddState(States.LandOnClimbable, new State<States>(
 			onEnter: () =>
 			{
 				Squish = new Vector2(0.65f, 1.4f);
-				fsm.ActivateTrigger("Rope");
+				fsm.ActivateTrigger("Climbing");
 			}
 		));
 
-		// Rope
-		fsm.AddState(States.Rope, new State<States>(
+		// Climbing
+		fsm.AddState(States.Climbing, new State<States>(
 			onEnter: () =>
 			{
-				var rope = OverlapsFirst(Masks.Rope);
+				// climb overlapping rope or ladder
+				var rope = OverlapsFirst(Masks.Rope | Masks.Ladder);
 				if (rope != null)
 				{
-					Position = rope.Position + (Facing == Signs.Positive ? new Point2(3, 8) : new Point2(5, 8));
+					// Position = rope.Position + (Facing == Signs.Positive ? new Point2(3, 16) : new Point2(4, 16));
+					Position = rope.Position + new Point2(4, 16);
 				}
+				else
+				{
+					// climb down ladder
+					var ladder = OverlapsFirst(Point2.Down, Masks.Ladder);
+					if (ladder != null)
+					{
+						Position = ladder.Position + new Point2(4, 6);
+					}
+				}
+
 				Stop();
 			},
-			onUpdate: () => RopeState()
+			onUpdate: () => ClimbingState()
 		));
 
 		// Airborne: In the air
@@ -120,20 +132,21 @@ public class Player : Actor
 		// Transitions
 		fsm.AddTransition(States.Normal, States.Airborne, condition: () => !grounded);
 		fsm.AddTransition(States.Normal, States.Attack, condition: () => Controls.Attack.ConsumePress());
-		fsm.AddTransition(States.Normal, States.LandOnRope, condition: () => OverlapsAny(Masks.Rope) && !grounded); // was in the air and contacted rope
-		fsm.AddTransition(States.Normal, States.Rope, condition: () => OverlapsAny(Masks.Rope) && Controls.Move.IntValue.Y < 0); // is in the ground and starts climbing rope
+		fsm.AddTransition(States.Normal, States.LandOnClimbable, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && !grounded); // was in the air and contacted climbable
+		fsm.AddTransition(States.Normal, States.Climbing, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && Controls.Move.IntValue.Y < 0); // is in the ground and starts climbing
+		fsm.AddTransition(States.Normal, States.Climbing, condition: () => OverlapsAny(Point2.Down, Masks.Ladder) && Controls.Move.IntValue.Y > 0); // if on top of a ladder and going down
 
-		fsm.AddTransition(States.Attack, States.Rope, condition: () => OverlapsAny(Masks.Rope) && Controls.Move.IntValue.Y < 0); // can cancel attack and grab rope
+		fsm.AddTransition(States.Attack, States.Climbing, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && Controls.Move.IntValue.Y < 0); // can cancel attack and grab climbable
 
-		fsm.AddTransition(States.Rope, States.Normal, condition: () => grounded && (MathF.Abs(Controls.Move.IntValue.X) > 0 || Controls.Move.IntValue.Y > 0));  // in the ground and pressing down or moving
+		fsm.AddTransition(States.Climbing, States.Normal, condition: () => grounded && (MathF.Abs(Controls.Move.IntValue.X) > 0 || Controls.Move.IntValue.Y > 0));  // in the ground and pressing down or moving
 
 		fsm.AddTransition(States.Airborne, States.Normal, condition: () => grounded);
 		fsm.AddTransition(States.Airborne, States.Attack, condition: () => Controls.Attack.ConsumePress());
-		fsm.AddTransition(States.Airborne, States.Rope, condition: () => OverlapsAny(Masks.Rope) && Controls.Move.IntValue.Y < 0);
+		fsm.AddTransition(States.Airborne, States.Climbing, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && Controls.Move.IntValue.Y < 0);
 
 		// Add triggers
 		fsm.AddAnyTrigger("Normal", States.Normal);
-		fsm.AddAnyTrigger("Rope", States.Rope);
+		fsm.AddAnyTrigger("Climbing>", States.Climbing);
 		fsm.AddAnyTrigger("Airborne", States.Airborne);
 		fsm.AddAnyTrigger("Hurt", States.Hurt);
 
@@ -171,7 +184,7 @@ public class Player : Actor
 		}
 
 		// gravity
-		if (!grounded && fsm.CurrentState != States.Rope && fsm.CurrentState != States.LandOnRope)
+		if (!grounded && fsm.CurrentState != States.Climbing && fsm.CurrentState != States.LandOnClimbable)
 		{
 			float grav = Gravity;
 			if (fsm.CurrentState == States.Airborne && MathF.Abs(Velocity.Y) < 20 && Controls.Jump.Down)
@@ -284,7 +297,7 @@ public class Player : Actor
 		}
 	}
 
-	public void RopeState()
+	public void ClimbingState()
 	{
 		// vertical movement
 		{
@@ -295,10 +308,10 @@ public class Player : Actor
 			else
 				Play("climb_idle");
 
-			// Rope acceleration
+			// Climbing acceleration
 			Velocity.Y += input * 100 * Time.Delta;
 
-			var maxspd = MaxRopeSpeed;
+			var maxspd = MaxClimbingSpeed;
 			if (MathF.Abs(Velocity.Y) > maxspd)
 				Velocity.Y = Calc.Approach(Velocity.Y, MathF.Sign(Velocity.Y) * maxspd, 2000 * Time.Delta);
 
@@ -306,8 +319,16 @@ public class Player : Actor
 			if (input == 0)
 				Velocity.Y = Calc.Approach(Velocity.Y, 0, Friction * Time.Delta);
 
-			if (!OverlapsAny(new Point2(0, -14), Masks.Rope) && Velocity.Y < 0)
+			if(OverlapsAny(Masks.Rope))
+			{
+				if (!OverlapsAny(new Point2(0, -14), Masks.Rope) && Velocity.Y < 0)
+					StopY();
+			}
+			else if(!OverlapsAny(Masks.Ladder))
+			{
+				fsm.ActivateTrigger("Normal");
 				StopY();
+			}
 
 			// // Facing
 			// if (input != 0)

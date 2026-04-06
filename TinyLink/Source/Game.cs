@@ -36,6 +36,8 @@ public class Game
 	public Point2 Cell => room?.Cell ?? Point2.Zero;
 	public Room? CurrentRoom => room;
 
+	private bool debugActorHitboxes = false;
+
 	public Game(Manager manager, Point2 start)
 	{
 		Manager = manager;
@@ -62,6 +64,10 @@ public class Game
 			// Reload Room Debug
 			if (Input.Keyboard.Pressed(Keys.R))
 				ReloadRoom();
+
+			// should debug hitboxes?
+			if (Input.Keyboard.Pressed(Keys.Period))
+				debugActorHitboxes = !debugActorHitboxes;
 
 			// only run normal updates if no hitstun
 			if (hitstun <= 0)
@@ -122,6 +128,19 @@ public class Game
 
 			Batcher.PushMatrix(actor.Position);
 			actor.Render(Batcher);
+
+			// if(actor.Mask == Actor.Masks.Player)
+			if(debugActorHitboxes)
+			{
+				// System.Console.WriteLine(actor.Hitbox.rect);
+				Batcher.PushLayer(int.MinValue);
+				var rect = new Rect(actor.Hitbox.rect.Position, actor.Hitbox.rect.Size);
+				Batcher.Rect(rect, Color.Transparent);
+				float scale = 3f;
+				Batcher.RectLine(rect, 1.0f / scale * 4, 0xff0000);
+				Batcher.PopLayer();
+			}
+
 			Batcher.PopMatrix();
 		}
 		rendering.Clear();

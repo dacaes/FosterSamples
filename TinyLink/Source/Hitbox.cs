@@ -15,7 +15,7 @@ public readonly struct Hitbox
 	}
 
 	public readonly Shapes Shape;
-	private readonly RectInt rect;
+	public readonly RectInt rect;
 	private readonly bool[,]? grid;
 
 	public Hitbox()

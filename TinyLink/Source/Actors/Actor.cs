@@ -16,6 +16,7 @@ public class Actor
 		Enemy = 1 << 3,
 		Hazard = 1 << 4,
 		Rope = 1 << 5,
+		Ladder = 1 << 6
 	}
 
 	public Game Game = null!;
@@ -137,13 +138,16 @@ public class Actor
 	{
 		foreach (var other in Game.Actors)
 		{
-			if (other == this || !other.Mask.Has(Masks.Solid | Masks.Jumpthru))
+			if (other == this || !other.Mask.Has(Masks.Solid | Masks.Jumpthru | Masks.Ladder))
 				continue;
 
 			if (!OverlapsAny(Point2.Down, other))
 				continue;
 
 			if (other.Mask.Has(Masks.Jumpthru) && OverlapsAny(Point2.Zero, other))
+				continue;
+
+			if (other.Mask.Has(Masks.Ladder) && OverlapsAny(Point2.Zero, Masks.Ladder))
 				continue;
 
 			return true;
