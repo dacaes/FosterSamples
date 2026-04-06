@@ -134,7 +134,6 @@ class StateMachine<TState> where TState : Enum
 
 				// Condition-based check
 				bool conditionMet = t.CanTransition();
-				if (conditionMet) Console.WriteLine($"{t.ToString()}");
 
 				if (triggered && conditionMet)
 				{

@@ -16,9 +16,10 @@ public class Player : Actor
 		Start
 	}
 
-	public const int MaxHealth = 4;
+	public const int MaxHealth = 1;
 	private const float MaxGroundSpeed = 60;
 	private const float MaxAirSpeed = 70;
+	private const float MaxRopeSpeed = 30;
 	private const float GroundAccel = 500;
 	private const float AirAccel = 100;
 	private const float Friction = 800;
@@ -32,7 +33,6 @@ public class Player : Actor
 	private const float InvincibleDuration = 1.5f;
 
 	public int Health = MaxHealth;
-	public States State;
 	public Controls Controls => Game.Controls;
 
 	private float stateDuration = 0;
@@ -45,7 +45,6 @@ public class Player : Actor
 
 	public Player()
 	{
-		State = States.Start;
 		Sprite = Assets.GetSprite("player");
 		Hitbox = new(new RectInt(-4, -12, 8, 12));
 		Mask = Masks.Player;
@@ -54,19 +53,24 @@ public class Player : Actor
 		inRope = false;
 		Play("sword");
 
+		// Normal: in the ground, where you can walk, duck, jump...
 		fsm.AddState(States.Normal, new State<States>(
 			onEnter: () => { Play("idle"); },
-			onUpdate: () => NormalState()
+			onUpdate: () => NormalState(),
+			onExit: () => ducking = false
 		));
 
+		// Land On Rope: Just to do a cool effect when you transition from Airborne to Rope
 		fsm.AddState(States.LandOnRope, new State<States>(
 			onEnter: () =>
 			{
+				inRope = true;
 				Squish = new Vector2(0.65f, 1.4f);
 				fsm.ActivateTrigger("Rope");
 			}
 		));
 
+		// Rope
 		fsm.AddState(States.Rope, new State<States>(
 			onEnter: () =>
 			{
@@ -83,6 +87,7 @@ public class Player : Actor
 			onExit: () => inRope = false
 		));
 
+		// Airborne: In the air
 		fsm.AddState(States.Airborne, new State<States>(
 			onUpdate: () =>
 			{
@@ -90,32 +95,59 @@ public class Player : Actor
 			}
 		));
 
+		// Attack
 		fsm.AddState(States.Attack, new State<States>(
 			onEnter: () =>
 			{
 				if (grounded)
 					StopX();
 			},
-			onUpdate: () => { Console.WriteLine("attack"); AttackState(); }
+			onUpdate: () => { AttackState(); }
 		));
 
-		fsm.AddState(States.Hurt, new State<States>()).OnUpdate = () => HurtState();
+		//Hurt
+		fsm.AddState(States.Hurt, new State<States>(
+			onEnter: () =>
+			{
+				if (Health <= 0)
+				{
+					foreach (var actor in Game.Actors)
+						if (actor != this)
+							Game.Destroy(actor);
+					Game.Shake(0.1f);
+				}
+			},
+			onUpdate: () => HurtState()
+		));
+
+		// Start
 		fsm.AddState(States.Start, new State<States>()).OnUpdate = () => StartState();
 
+		// Transitions
+		fsm.AddTransition(States.Normal, States.Airborne, condition: () => !grounded);
 		fsm.AddTransition(States.Normal, States.Attack, condition: () => Controls.Attack.ConsumePress());
 		fsm.AddTransition(States.Normal, States.LandOnRope, condition: () => OverlapsAny(Masks.Rope) && !grounded); // was in the air and contacted rope
-		fsm.AddTransition(States.Normal, States.Rope, condition: () => OverlapsAny(Masks.Rope) && grounded && Controls.Move.IntValue.Y < 0); // is in the ground and starts climbing rope
-																																			 // fsm.AddTransition(States.Rope, States.Normal, condition: () => !OverlapsAny(Masks.Rope));
-		fsm.AddTransition(States.Rope, States.Normal, condition: () => grounded && (MathF.Abs(Controls.Move.IntValue.X) > 0 || Controls.Move.IntValue.Y > 0));  // in the ground and pressing down or moving
-		fsm.AddTransition(States.Airborne, States.Normal, condition: () => grounded);
-		fsm.AddTransition(States.Airborne, States.Rope, condition: () => OverlapsAny(Masks.Rope) && !grounded && Controls.Move.IntValue.Y < 0);
+		fsm.AddTransition(States.Normal, States.Rope, condition: () => OverlapsAny(Masks.Rope) && Controls.Move.IntValue.Y < 0); // is in the ground and starts climbing rope
 
+		fsm.AddTransition(States.Attack, States.Rope, condition: () => OverlapsAny(Masks.Rope) && Controls.Move.IntValue.Y < 0); // can cancel attack and grab rope
+
+		fsm.AddTransition(States.Rope, States.Normal, condition: () => grounded && (MathF.Abs(Controls.Move.IntValue.X) > 0 || Controls.Move.IntValue.Y > 0));  // in the ground and pressing down or moving
+
+		fsm.AddTransition(States.Airborne, States.Normal, condition: () => grounded);
+		fsm.AddTransition(States.Airborne, States.Attack, condition: () => Controls.Attack.ConsumePress());
+		fsm.AddTransition(States.Airborne, States.Rope, condition: () => OverlapsAny(Masks.Rope) && Controls.Move.IntValue.Y < 0);
+
+		// Add triggers
 		fsm.AddAnyTrigger("Normal", States.Normal);
 		fsm.AddAnyTrigger("Rope", States.Rope);
 		fsm.AddAnyTrigger("Airborne", States.Airborne);
+		fsm.AddAnyTrigger("Hurt", States.Hurt);
 
+		// Reset the state duration when entering any state
 		fsm.OnAnyEnter = () => stateDuration = 0f;
-		fsm.SetState(States.Normal);
+
+		// Initial state
+		fsm.SetState(States.Start);
 	}
 
 	public override void Update()
@@ -128,33 +160,8 @@ public class Player : Actor
 			Squish = new Vector2(1.5f, 0.70f);
 		grounded = nowGrounded;
 
-		// increment state timer
-		var wasState = State;
-
 		fsm.Update();
-		// state control
-		// switch (State)
-		// {
-		// 	case States.Normal:
-		// 		NormalState();
-		// 		break;
-		// 	case States.Rope:
-		// 		RopeState();
-		// 		break;
-		// 	case States.Attack:
-		// 		AttackState();
-		// 		break;
-		// 	case States.Hurt:
-		// 		HurtState();
-		// 		break;
-		// 	case States.Start:
-		// 		StartState();
-		// 		break;
-		// }
 
-		// ducking collider(s)
-		if (ducking && State != States.Normal)
-			ducking = false;
 		if (ducking)
 			Hitbox = new(new RectInt(-4, -6, 8, 6));
 		else
@@ -173,8 +180,8 @@ public class Player : Actor
 		if (!grounded && !inRope)
 		{
 			float grav = Gravity;
-			if (State == States.Normal && MathF.Abs(Velocity.Y) < 20 && Controls.Jump.Down)
-				grav *= 0.40f;
+			if (fsm.CurrentState == States.Airborne && MathF.Abs(Velocity.Y) < 20 && Controls.Jump.Down)
+				grav *= 0.40f;	// air momentum at the peak of the jump
 			Velocity.Y += grav * Time.Delta;
 		}
 
@@ -192,7 +199,7 @@ public class Player : Actor
 			else if (Position.Y > Game.Bounds.Bottom + 12 && !Game.Transition(Point2.Down))
 			{
 				Health = 0;
-				State = States.Hurt;
+				fsm.ActivateTrigger("Hurt");
 			}
 			else if (Position.Y < Game.Bounds.Top)
 			{
@@ -208,8 +215,6 @@ public class Player : Actor
 			hit.Hit(this);
 
 		stateDuration += Time.Delta;
-		// if (State != wasState)
-		// 	stateDuration = 0.0f;
 	}
 
 	public void NormalState()
@@ -217,76 +222,59 @@ public class Player : Actor
 		// update ducking state
 		ducking = grounded && Controls.Move.IntValue.Y > 0;
 
-		if (OverlapsAny(Masks.Rope) && (!grounded || MathF.Abs(Controls.Move.IntValue.Y) > 0))
-		{
-			State = States.Rope;
-			return;
-		}
-
 		// get input
 		var input = Controls.Move.IntValue.X;
 		// if (ducking)
 		// 	input = 0;
 
 		// sprite
-		if (grounded)
-		{
-			if (ducking)
-				Play("duck");
-			else if (input == 0)
-				Play("idle");
-			else
-				Play("run");
-		}
+		if (ducking)
+			Play("duck");
+		else if (input == 0)
+			Play("idle");
 		else
-		{
-			Play("jump");
-		}
+			Play("run");
 
 		// horizontal movement
 		{
 			// Acceleration
-			Velocity.X += input * (grounded ? GroundAccel : AirAccel) * Time.Delta;
+			Velocity.X += input * GroundAccel * Time.Delta;
 
 			// Max Speed
-			var maxspd = grounded ? MaxGroundSpeed : MaxAirSpeed;
+			var maxspd = MaxGroundSpeed;
 			maxspd = ducking ? maxspd * 0.3f : maxspd;
 			if (MathF.Abs(Velocity.X) > maxspd)
 				Velocity.X = Calc.Approach(Velocity.X, MathF.Sign(Velocity.X) * maxspd, 2000 * Time.Delta);
 
 			// Friction
-			if (input == 0 && grounded)
+			if (input == 0)
 				Velocity.X = Calc.Approach(Velocity.X, 0, Friction * Time.Delta);
 
 			// Facing
-			if (grounded && input != 0)
+			if (input != 0)
 				Facing = input;
 		}
 
 		// Start jumping
-		if (grounded && Controls.Jump.ConsumePress())
+		if (Controls.Jump.ConsumePress())
 		{
-			Squish = new Vector2(0.65f, 1.4f);
-			StopX();
-			Velocity.X = input * MaxAirSpeed;
-			jumpTimer = JumpTime;
-			fsm.ActivateTrigger("Airborne");
+			StartJump();
 		}
+	}
 
-		// Begin Attack
-		if (Controls.Attack.ConsumePress())
-		{
-			State = States.Attack;
-			if (grounded)
-				StopX();
-		}
+	public void StartJump()
+	{
+		var input = Controls.Move.IntValue.X;
+		Squish = new Vector2(0.65f, 1.4f);
+		StopX();
+		Velocity.X = input * MaxAirSpeed;
+		jumpTimer = JumpTime;
+		Facing = input;
+		fsm.ActivateTrigger("Airborne");
 	}
 
 	public void AirborneState()
 	{
-		// after jumping
-		// it allows to track the stateduration and if it is very short it doesn't transition to rope. basically to be able to jump from a rope
-
 		Play("jump");
 
 		var input = Controls.Move.IntValue.X;
@@ -304,16 +292,6 @@ public class Player : Actor
 
 	public void RopeState()
 	{
-		if (grounded)
-			State = States.Normal;
-		if (!OverlapsAny(Masks.Rope) || MathF.Abs(Controls.Move.IntValue.X) > 0)
-			State = States.Normal;
-
-		// StopX();
-
-		// Console.WriteLine("rope");
-		inRope = true;
-
 		// vertical movement
 		{
 			var input = Controls.Move.IntValue.Y;
@@ -326,7 +304,7 @@ public class Player : Actor
 			// Rope acceleration
 			Velocity.Y += input * 100 * Time.Delta;
 
-			var maxspd = 30;
+			var maxspd = MaxRopeSpeed;
 			if (MathF.Abs(Velocity.Y) > maxspd)
 				Velocity.Y = Calc.Approach(Velocity.Y, MathF.Sign(Velocity.Y) * maxspd, 2000 * Time.Delta);
 
@@ -344,13 +322,7 @@ public class Player : Actor
 
 		if (Controls.Jump.ConsumePress())
 		{
-			var input = Controls.Move.IntValue.X;
-			Squish = new Vector2(0.65f, 1.4f);
-			StopX();
-			Velocity.X = input * MaxAirSpeed;
-			jumpTimer = JumpTime;
-			Facing = input;
-			fsm.ActivateTrigger("Airborne");
+			StartJump();
 		}
 	}
 
@@ -386,26 +358,24 @@ public class Player : Actor
 		if (stateDuration >= Animation.Duration)
 		{
 			Play("idle");
-			State = States.Normal;
-			Console.WriteLine("end");
-			fsm.ActivateTrigger("Normal");
+			if(grounded)
+				fsm.ActivateTrigger("Normal");
+			else
+				fsm.ActivateTrigger("Airborne");
 		}
 	}
 
 	public void HurtState()
 	{
-		if (stateDuration <= 0 && Health <= 0)
-		{
-			foreach (var actor in Game.Actors)
-				if (actor != this)
-					Game.Destroy(actor);
-			Game.Shake(0.1f);
-		}
-
 		Velocity.X = Calc.Approach(Velocity.X, 0, HurtFriction * Time.Delta);
 
 		if (stateDuration >= HurtDuration && Health > 0)
-			State = States.Normal;
+		{
+			if(grounded)
+				fsm.ActivateTrigger("Normal");
+			else
+				fsm.ActivateTrigger("Airborne");
+		}
 
 		if (stateDuration >= DeathDuration && Health <= 0)
 			Game.ReloadRoom();
@@ -414,7 +384,7 @@ public class Player : Actor
 	public void StartState()
 	{
 		if (stateDuration >= 1.0f)
-			State = States.Normal;
+			fsm.ActivateTrigger("Normal");
 	}
 
 	public override void OnWasHit(Actor by)
@@ -425,7 +395,7 @@ public class Player : Actor
 		Play("hurt");
 
 		Velocity = new Vector2(-Facing * 100, -80);
-		State = States.Hurt;
+		fsm.ActivateTrigger("Hurt");
 		Health--;
 	}
 }
