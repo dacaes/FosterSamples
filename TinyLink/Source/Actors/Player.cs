@@ -38,7 +38,6 @@ public class Player : Actor
 	private float stateDuration = 0;
 	private float jumpTimer = 0;
 	private bool grounded = false;
-	private bool inRope = false;
 	private bool ducking = false;
 
 	private StateMachine<States> fsm = new();
@@ -50,7 +49,6 @@ public class Player : Actor
 		Mask = Masks.Player;
 		IFrameTime = InvincibleDuration;
 		grounded = true;
-		inRope = false;
 		Play("sword");
 
 		// Normal: in the ground, where you can walk, duck, jump...
@@ -64,7 +62,6 @@ public class Player : Actor
 		fsm.AddState(States.LandOnRope, new State<States>(
 			onEnter: () =>
 			{
-				inRope = true;
 				Squish = new Vector2(0.65f, 1.4f);
 				fsm.ActivateTrigger("Rope");
 			}
@@ -74,8 +71,6 @@ public class Player : Actor
 		fsm.AddState(States.Rope, new State<States>(
 			onEnter: () =>
 			{
-				inRope = true;
-
 				var rope = OverlapsFirst(Masks.Rope);
 				if (rope != null)
 				{
@@ -83,8 +78,7 @@ public class Player : Actor
 				}
 				Stop();
 			},
-			onUpdate: () => RopeState(),
-			onExit: () => inRope = false
+			onUpdate: () => RopeState()
 		));
 
 		// Airborne: In the air
@@ -177,7 +171,7 @@ public class Player : Actor
 		}
 
 		// gravity
-		if (!grounded && !inRope)
+		if (!grounded && fsm.CurrentState != States.Rope && fsm.CurrentState != States.LandOnRope)
 		{
 			float grav = Gravity;
 			if (fsm.CurrentState == States.Airborne && MathF.Abs(Velocity.Y) < 20 && Controls.Jump.Down)

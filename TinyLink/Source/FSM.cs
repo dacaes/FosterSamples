@@ -106,9 +106,9 @@ class StateMachine<TState> where TState : Enum
 		if (_currentState == null)
 			return;
 
-		Console.WriteLine(_currentStateKey);
+		// Console.WriteLine(_currentStateKey);
 
-		// CHeck any state transitions
+		// Check any state transitions
 		foreach (var t in _anyTransitions)
 		{
 			bool triggered = t.TriggerName == null || _triggers.Contains(t.TriggerName);
