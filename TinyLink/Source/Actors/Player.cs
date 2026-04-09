@@ -374,6 +374,9 @@ public class Player : Actor
 
 		if (hitbox != null)
 		{
+# if DEBUG
+			attackHitbox = hitbox;
+#endif
 			var it = hitbox.Value;
 			if (Facing == Signs.Negative)
 				it.X = -(it.X + it.Width);
@@ -429,4 +432,25 @@ public class Player : Actor
 		fsm.ActivateTrigger("Hurt");
 		Health--;
 	}
+
+#if DEBUG
+	RectInt? attackHitbox = null;
+
+	public void RenderAttackDebug(Batcher batcher, Point2 offset, Color color)
+	{
+		batcher.PushMatrix(offset);
+
+		if (attackHitbox.HasValue)
+		{
+			var rect = attackHitbox.Value;
+			if (Facing == Signs.Negative)
+				rect.X = -(rect.X + rect.Width);
+			batcher.RectLine(rect + offset, 1, color);
+		}
+
+		batcher.PopMatrix();
+
+		attackHitbox = null;
+	}
+#endif
 }

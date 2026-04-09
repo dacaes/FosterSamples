@@ -147,6 +147,8 @@ public class Actor
 			if (other.Mask.Has(Masks.Jumpthru) && OverlapsAny(Point2.Zero, other))
 				continue;
 
+			// can't be walking on top of a ladder segment if there's another ladder overlapping
+			// i.e. player can just be on top of top ladder segment
 			if (other.Mask.Has(Masks.Ladder) && OverlapsAny(Point2.Zero, Masks.Ladder))
 				continue;
 

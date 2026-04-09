@@ -129,17 +129,26 @@ public class Game
 			Batcher.PushMatrix(actor.Position);
 			actor.Render(Batcher);
 
+#if DEBUG
 			// if(actor.Mask == Actor.Masks.Player)
 			if(debugActorHitboxes)
 			{
+				if(actor.Mask != Actor.Masks.None)
+					actor.Hitbox.Render(Batcher, Point2.Zero, Color.Red );
+
+				if(actor is Player player1)
+				{
+					player1.RenderAttackDebug(Batcher, Point2.Zero, Color.Blue);
+				}
 				// System.Console.WriteLine(actor.Hitbox.rect);
-				Batcher.PushLayer(int.MinValue);
-				var rect = new Rect(actor.Hitbox.rect.Position, actor.Hitbox.rect.Size);
-				Batcher.Rect(rect, Color.Transparent);
-				float scale = 3f;
-				Batcher.RectLine(rect, 1.0f / scale * 4, 0xff0000);
-				Batcher.PopLayer();
+				// Batcher.PushLayer(int.MinValue);
+				// var rect = new Rect(actor.Hitbox.rect.Position, actor.Hitbox.rect.Size);
+				// Batcher.Rect(rect, Color.Transparent);
+				// float scale = 3f;
+				// Batcher.RectLine(rect, 1.0f / scale * 4, 0xff0000);
+				// Batcher.PopLayer();
 			}
+#endif
 
 			Batcher.PopMatrix();
 		}
