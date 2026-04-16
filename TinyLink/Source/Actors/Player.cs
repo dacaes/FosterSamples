@@ -1,5 +1,6 @@
 using System.Numerics;
 using Foster.Framework;
+using static Teca.Audio;
 
 namespace TinyLink;
 
@@ -109,6 +110,7 @@ public class Player : Actor
 				// if (grounded)
 					// StopX();
 				attackImpulseOpportunityConsumed = false;
+				PlaySound("slash");
 			},
 			onUpdate: () => { AttackState(); }
 		));

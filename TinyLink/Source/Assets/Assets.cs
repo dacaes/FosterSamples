@@ -12,6 +12,8 @@ public static class Assets
 	public static readonly Dictionary<string, Tileset> Tilesets = new();
 	public static readonly Dictionary<string, Subtexture> Subtextures = new();
 	public static readonly Dictionary<Point2, Room> Rooms = new();
+	public static readonly Dictionary<string, Sound> Sounds = new();
+
 
 	private const string assetsFolderName = "Assets";
 	private static string? path = null;
@@ -132,6 +134,17 @@ public static class Assets
 					tileset.Tiles[x + y * columns] = GetSubtexture($"tilesets/{name}{x}x{y}");
 
 			Tilesets.Add(name, tileset);
+		}
+
+		var soundsPath = Path.Join(AssetsPath, "Sounds");
+		Sounds.Clear();
+
+		// get sound files and create the sounds
+		foreach (var file in Directory.EnumerateFiles(soundsPath, "*.wav", SearchOption.AllDirectories))
+		{
+			var name = Path.ChangeExtension(Path.GetRelativePath(soundsPath, file), null);
+			var sound = new Sound(name, file);
+			Sounds.Add(name, sound);
 		}
 
 		// load rooms

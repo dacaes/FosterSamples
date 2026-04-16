@@ -1,6 +1,7 @@
 
 using System.Numerics;
 using Foster.Framework;
+using static Teca.Audio;
 
 namespace TinyLink;
 
@@ -149,6 +150,7 @@ public class Manager : App
 
 	protected override void Startup()
 	{
+		InitAudio();
 		Assets.Load(GraphicsDevice);
 		Factory.RegisterTypes();
 
@@ -157,6 +159,7 @@ public class Manager : App
 
 	protected override void Shutdown()
 	{
+		QuitAudio();
 		Assets.Unload();
 		Factory.Clear();
 	}

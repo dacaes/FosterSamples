@@ -7,3 +7,5 @@ Sprite Resources are created in [Aseprite](https://www.aseprite.org/), so you wi
 
 This was originally a project created in 15 hours for a live stream. The original [can be found here](https://github.com/NoelFB/tiny_link).
 
+## Attribution
+See ATTRIBUTION.md for asset attributions.
