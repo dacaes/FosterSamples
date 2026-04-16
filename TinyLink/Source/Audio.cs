@@ -55,7 +55,7 @@ public static class Audio
             deviceId = devicePtr[0];
         }
 
-        IntPtr stream = SDL_OpenAudioDeviceStream(deviceId, ref spec, null, IntPtr.Zero);
+        IntPtr stream = SDL_OpenAudioDeviceStream(deviceId, ref spec, null!, IntPtr.Zero);
 
         if (stream == IntPtr.Zero)
         {
