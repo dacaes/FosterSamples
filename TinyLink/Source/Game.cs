@@ -300,6 +300,7 @@ public class Game
 				entry.Tile?.Invoke(tile, fg, bg);
 			}
 		}
+		Create<DecorativeRopeTest>(Point2.Zero);
 	}
 
 	public void Hitstun(float time) => hitstun = MathF.Max(hitstun, time);
