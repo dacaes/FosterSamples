@@ -12,6 +12,7 @@ public partial class Player : Actor
 		Ducking,
 		LandOnClimbable,
 		Climbing,
+		Jump,
 		Airborne,
 		Attack,
 		Hurt,
@@ -101,6 +102,14 @@ public partial class Player : Actor
 			onUpdate: () => ClimbingState()
 		));
 
+		// Jump
+		fsm.AddState(States.Jump, new State<States>(
+			onEnter: () =>
+			{
+				JumpState();
+			}
+		));
+
 		// Airborne: In the air
 		fsm.AddState(States.Airborne, new State<States>(
 			onEnter: () =>
@@ -159,13 +168,14 @@ public partial class Player : Actor
 		fsm.SetState(States.Start);
 
 		// Add condition based transitions
-		fsm.AddTransition(States.Normal, States.Ducking, condition: () => grounded && Controls.Move.IntValue.Y > 0);
-		fsm.AddTransition(States.Ducking, States.Normal, condition: () => !(grounded && Controls.Move.IntValue.Y > 0));
-
+		// Order matters, if multiple transitions are valid first succeeds
 		fsm.AddTransition([States.Normal, States.Ducking], States.Airborne, condition: () => !grounded);
 		fsm.AddTransition([States.Normal, States.Ducking], States.Attack, condition: () => Controls.Attack.ConsumePress());
 		fsm.AddTransition(States.Normal, States.Climbing, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && Controls.Move.IntValue.Y < 0); // is in the ground and starts climbing
 		fsm.AddTransition(States.Normal, States.Climbing, condition: () => OverlapsAny(Point2.Down * 12, Masks.Ladder) && Controls.Move.IntValue.Y > 0); // if on top of a ladder and going down
+		fsm.AddTransition(States.Normal, States.Ducking, condition: () => grounded && Controls.Move.IntValue.Y > 0 && !OverlapsAny(Point2.Down * 12, Masks.Ladder));
+
+		fsm.AddTransition(States.Ducking, States.Normal, condition: () => !(grounded && Controls.Move.IntValue.Y > 0));
 
 		fsm.AddTransition(States.Attack, States.Climbing, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && Controls.Move.IntValue.Y < 0); // can cancel attack and grab climbable
 
@@ -179,6 +189,7 @@ public partial class Player : Actor
 		// Add triggers based global transitions
 		fsm.AddGlobalTransition(States.Normal, trigger: "Normal");
 		fsm.AddGlobalTransition(States.Climbing, trigger: "Climbing");
+		fsm.AddGlobalTransition(States.Jump, trigger: "Jump");
 		fsm.AddGlobalTransition(States.Airborne, trigger: "Airborne");
 		fsm.AddGlobalTransition(States.Hurt, trigger: "Hurt");
 	}

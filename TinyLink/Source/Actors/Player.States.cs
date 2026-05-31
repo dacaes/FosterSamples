@@ -38,13 +38,13 @@ public partial class Player : Actor
 		if (Controls.Jump.ConsumePress())
 		{
 			// Step down jumpthru or a ladder
-			if(inputY > 0 && OverlapsAny(Point2.Down, Masks.Jumpthru | Masks.Ladder))
+			if(inputY > 0 && (OverlapsAny(Point2.Down, Masks.Jumpthru) || OverlapsAny(Point2.Down * 12,Masks.Ladder)))
 			{
 				Position += Point2.Down;
 				fsm.ActivateTrigger("Airborne");
 			}
 			else
-				StartJump();
+				fsm.ActivateTrigger("Jump");
 		}
     }
 
@@ -68,16 +68,22 @@ public partial class Player : Actor
 		GroundMovement(true);
 	}
 
-	public void StartJump()
+	public void JumpState()
 	{
-		var input = Controls.Move.IntValue.X;
+		Play("jump");
+
 		Squish = new Vector2(0.65f, 1.4f);
 		StopX();
-		Velocity.X = input * MaxAirSpeed;
 		jumpTimer = JumpTime;
+
+        if(IsNetworkGhost) return;
+
+		var input = Controls.Move.IntValue.X;
+		Velocity.X = input * MaxAirSpeed;
 		if(input != 0)
 			Facing = input;
-		fsm.ActivateTrigger("Airborne");
+		
+        fsm.ActivateTrigger("Airborne");
 	}
 
 	public void AirborneState()
@@ -96,7 +102,7 @@ public partial class Player : Actor
 				Velocity.X = Calc.Approach(Velocity.X, MathF.Sign(Velocity.X) * maxspd, 2000 * Time.Delta);
 		}
 	}
-    
+
 	public void ClimbingState()
 	{
         if (Moving)
@@ -144,7 +150,7 @@ public partial class Player : Actor
 
 		if (Controls.Jump.ConsumePress())
 		{
-			StartJump();
+			fsm.ActivateTrigger("Jump");
 		}
 	}
 

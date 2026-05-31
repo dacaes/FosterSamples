@@ -118,7 +118,6 @@ public class Game
 						{
 							player.networkId = networkManager.LocalPlayerId;
 							localPlayer = player;
-							System.Console.WriteLine("success");
 						}
 					}
 					#endregion
