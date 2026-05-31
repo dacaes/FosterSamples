@@ -15,7 +15,7 @@ public partial class GameHost : NetworkManager
     protected Dictionary<int, int> _peerIdToPlayerId = new Dictionary<int, int>(); // maps peer.Id to playerId
 
 
-    public static void RunHost(Game game, out NetworkManager networkManager)
+    public static GameHost RunHost(Game game)
     {
         // Console.WriteLine("Enter port (default 9050): ");
         // string? portInput = Console.ReadLine();
@@ -23,8 +23,8 @@ public partial class GameHost : NetworkManager
         // var port = int.TryParse(portInput, out var parsedPort) ? parsedPort : 9050;
         var port = 9050;
 
-        networkManager = new GameHost(game, port);
         Console.WriteLine($"Host running on port {port}.");
+        return new GameHost(game, port);
     }
 
     public GameHost(Game game, int port = 9050) : base(game)

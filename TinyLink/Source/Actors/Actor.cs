@@ -19,7 +19,7 @@ public class Actor
 	}
 
 	#region Networking
-    public int id = -1;	//-1 == not assigned
+    public int networkId = -1;	//-1 == not assigned
 	public bool IsNetworkGhost {get; set;} = false;
 	#endregion
 

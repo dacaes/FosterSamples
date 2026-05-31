@@ -6,7 +6,7 @@ namespace TinyLink;
 
 public class Player : Actor
 {
-	public enum States
+	public enum States : byte
 	{
 		Normal,
 		EnterClimbable,

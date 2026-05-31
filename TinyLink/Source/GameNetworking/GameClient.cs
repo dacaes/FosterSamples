@@ -10,7 +10,7 @@ public partial class GameClient : NetworkManager
     protected int _localPlayerId = -1;
     public override int LocalPlayerId {get => _localPlayerId; protected set => _localPlayerId = value;}
 
-    public static void RunClient(Game game, out NetworkManager networkManager)
+    public static GameClient RunClient(Game game)
     {
         // Console.WriteLine("Enter server IP (default 127.0.0.1): ");
         // string? ip = Console.ReadLine();
@@ -26,8 +26,8 @@ public partial class GameClient : NetworkManager
         var ip = "127.0.0.1";
         var port = 9050; 
 
-        networkManager = new GameClient(game, ip, port);
         Console.WriteLine($"Connecting to {ip}:{port}...\n");
+        return new GameClient(game, ip, port);
     }
 
     public GameClient(Game game, string serverIp, int serverPort) : base(game)

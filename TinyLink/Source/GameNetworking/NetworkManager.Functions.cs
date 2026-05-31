@@ -20,7 +20,7 @@ public abstract partial class NetworkManager
             {
                 var newPlayer = new Player
                 {
-                    id = playerData.playerId,
+                    networkId = playerData.playerId,
                     IsNetworkGhost = true,
                     Position = playerData.position,
                     Facing = playerData.facing ? Signs.Positive : Signs.Negative,
@@ -97,7 +97,7 @@ public abstract partial class NetworkManager
 
         player.position = position;
         player.facing = facing == Signs.Positive;
-        player.state = (int)state;
+        player.state = (byte)state;
         _playersData[LocalPlayerId] = player;
 
         BroadcastUpdate(MessageType.PlayerUpdate, player, null);
@@ -119,7 +119,7 @@ public abstract partial class NetworkManager
          BroadcastUpdate(MessageType.PositionUpdate, positionUpdate, null);
     }
 
-    public void UpdateLocalPlayerState(int state)
+    public void UpdateLocalPlayerState(byte state)
     {
         if (!_playersData.TryGetValue(LocalPlayerId, out var player)) return;
 

@@ -49,12 +49,16 @@ public class Game
 	{
 		#region Networking
 		isHost = manager.IsHost;
-        if(isHost) GameHost.RunHost(this, out networkManager);
-        else
-		{
-			GameClient.RunClient(this, out networkManager);
 
-			((GameClient) networkManager).OnHandleAssignedPlayerId += (id) => localPlayer.id = id;
+        if(isHost)
+		{
+			networkManager = GameHost.RunHost(this);
+		}
+		else
+		{
+			var client = GameClient.RunClient(this);
+			client.OnHandleAssignedPlayerId += (id) => localPlayer.networkId = id;
+			networkManager = client;
 		}
 		#endregion
 
@@ -112,7 +116,7 @@ public class Game
 					{
 						if(localPlayer != player)
 						{
-							player.id = networkManager.LocalPlayerId;
+							player.networkId = networkManager.LocalPlayerId;
 							localPlayer = player;
 							System.Console.WriteLine("success");
 						}

@@ -53,7 +53,7 @@ public struct PlayerData : ISerializable<PlayerData>
     public int playerId;
     public Point2Payload positionPayload;
     public bool facing;
-	public int state;
+	public byte state;
 
     public Point2 position
     {
@@ -88,7 +88,7 @@ public struct PlayerData : ISerializable<PlayerData>
             playerId = reader.GetInt(),
             positionPayload = Point2Payload.Deserialize(reader),
             facing = reader.GetBool(),
-            state = reader.GetInt()
+            state = reader.GetByte()
         };
     }
 }
@@ -135,7 +135,7 @@ public struct PositionUpdateMessage : ISerializable<PositionUpdateMessage>
 public struct StateUpdateMessage : ISerializable<StateUpdateMessage>
 {
     public int playerId;
-    public int state;
+    public byte state;
 
     public void Serialize(NetDataWriter writer)
     {
@@ -148,7 +148,7 @@ public struct StateUpdateMessage : ISerializable<StateUpdateMessage>
         return new StateUpdateMessage
         {
             playerId = reader.GetInt(),
-            state = reader.GetInt()
+            state = reader.GetByte()
         };
     }
 }

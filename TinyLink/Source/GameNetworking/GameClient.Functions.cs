@@ -7,7 +7,7 @@ namespace GameNetworking;
 
 public partial class GameClient
 {
-    public Action<int> OnHandleAssignedPlayerId;
+    public Action<int>? OnHandleAssignedPlayerId;
 
      private void HandleAllPlayersSnapshot(NetPacketReader reader)
     {
