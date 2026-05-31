@@ -27,7 +27,7 @@ public partial class GameHost : NetworkManager
 
     public GameHost(Game game, int port = 9050) : base(game)
     {
-        _players[HostPlayerId] = new PlayerData
+        _playersData[HostPlayerId] = new PlayerData
         {
             playerId = HostPlayerId,
             positionPayload = new Point2Payload(0, 0),
@@ -55,7 +55,7 @@ public partial class GameHost : NetworkManager
 
     private void OnConnectionRequest(ConnectionRequest request)
     {
-        if (_players.Count < MaxPlayers)
+        if (_playersData.Count < MaxPlayers)
         {
             request.AcceptIfKey("game");
             Console.WriteLine($"[HOST] Connection request accepted");
@@ -78,9 +78,9 @@ public partial class GameHost : NetworkManager
             state = (int) Player.States.Start
         };
         
-        _players[playerId] = newPlayer;
+        _playersData[playerId] = newPlayer;
         _peerIdToPlayerId[peer.Id] = playerId;  // Track the peer-to-player mapping
-        Console.WriteLine($"[HOST] Player {playerId} connected (Total: {_players.Count})");
+        Console.WriteLine($"[HOST] Player {playerId} connected (Total: {_playersData.Count})");
         // send assigned id explicitly, then send snapshot
         var idWriter = new NetDataWriter();
         idWriter.Put((byte)MessageType.AssignedPlayerId);
@@ -96,10 +96,10 @@ public partial class GameHost : NetworkManager
         // Use the peer-to-player mapping to find the player
         if (_peerIdToPlayerId.TryGetValue(peer.Id, out int playerId))
         {
-            _players.Remove(playerId);
+            _playersData.Remove(playerId);
             NetworkPlayers.Remove(playerId);
             _peerIdToPlayerId.Remove(peer.Id);
-            Console.WriteLine($"[HOST] Player {playerId} disconnected (Total: {_players.Count})");
+            Console.WriteLine($"[HOST] Player {playerId} disconnected (Total: {_playersData.Count})");
             BroadcastPlayerLeft(playerId);
         }
     }

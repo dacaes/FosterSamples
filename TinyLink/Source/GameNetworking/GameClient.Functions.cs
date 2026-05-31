@@ -10,12 +10,12 @@ public partial class GameClient
      private void HandleAllPlayersSnapshot(NetPacketReader reader)
     {
         int count = reader.GetInt();
-        _players.Clear();
+        _playersData.Clear();
 
         for (int i = 0; i < count; i++)
         {
             var playerData = PlayerData.Deserialize(reader);
-            _players[playerData.playerId] = playerData;
+            _playersData[playerData.playerId] = playerData;
         }
 
         UpdatePlayersFromPlayerData();
@@ -33,7 +33,7 @@ public partial class GameClient
     private void HandlePlayerJoined(NetPacketReader reader)
     {
         var player = PlayerData.Deserialize(reader);
-        _players[player.playerId] = player;
+        _playersData[player.playerId] = player;
         
         Console.WriteLine($"[CLIENT] Player {player.playerId} joined");
     }
@@ -41,7 +41,7 @@ public partial class GameClient
     private void HandlePlayerLeft(NetPacketReader reader)
     {
         int playerId = reader.GetInt();
-        _players.Remove(playerId);
+        _playersData.Remove(playerId);
         NetworkPlayers.Remove(playerId);
         
         Console.WriteLine($"[CLIENT] Player {playerId} left");

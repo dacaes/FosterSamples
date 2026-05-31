@@ -149,7 +149,7 @@ public class Game
 		#region Networking
 		if (networkManager is GameHost host)
 		{
-			host.UpdateLocalPlayer(localPlayer.Position, localPlayer.Facing, localPlayer.fsm.CurrentStateKey);
+			host.UpdateLocalPlayer(localPlayer.Position, localPlayer.Facing, localPlayer.fsm.CurrentState);
 		}
 		else if(networkManager is GameClient client)
 		{
@@ -160,7 +160,7 @@ public class Game
 				if (assigned != -1) localPlayer.id = assigned;
 			}
 
-			client.SendPlayerUpdate(localPlayer.Position, localPlayer.Facing, localPlayer.fsm.CurrentStateKey);
+			client.SendPlayerUpdate(localPlayer.Position, localPlayer.Facing, localPlayer.fsm.CurrentState);
 		}
 		#endregion
 	}

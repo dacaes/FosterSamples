@@ -8,16 +8,16 @@ public abstract class NetworkManager
 {
     protected NetManager _netManager;
     protected EventBasedNetListener _listener;
-    protected Dictionary<int, PlayerData> _players;
+    protected Dictionary<int, PlayerData> _playersData;
     public Dictionary<int, Player> NetworkPlayers {get; protected set;} = new();
 
     private Game game;
 
-    public IReadOnlyDictionary<int, PlayerData> Players => _players;
+    public IReadOnlyDictionary<int, PlayerData> Players => _playersData;
 
     public NetworkManager(Game game)
     {
-        _players = new Dictionary<int, PlayerData>();
+        _playersData = new Dictionary<int, PlayerData>();
         _listener = new EventBasedNetListener();
         _netManager = new NetManager(_listener);
         this.game = game;
@@ -45,7 +45,7 @@ public abstract class NetworkManager
 
     protected void UpdatePlayersFromPlayerData()
     {
-        foreach (var playerData in _players.Values)
+        foreach (var playerData in _playersData.Values)
         {
             if (NetworkPlayers.TryGetValue(playerData.playerId, out var player))
             {
@@ -75,12 +75,12 @@ public abstract class NetworkManager
     {
         var playerData = PlayerData.Deserialize(reader);
 
-        if (_players.TryGetValue(playerData.playerId, out var player))
+        if (_playersData.TryGetValue(playerData.playerId, out var player))
         {
             player.position = playerData.position;
             player.facing = playerData.facing;
             player.state = playerData.state;
-            _players[playerData.playerId] = player;
+            _playersData[playerData.playerId] = player;
         }
 
         UpdatePlayersFromPlayerData();
@@ -91,10 +91,10 @@ public abstract class NetworkManager
     {
         var positionUpdate = PositionUpdateMessage.Deserialize(reader);
 
-        if (_players.TryGetValue(positionUpdate.playerId, out var player))
+        if (_playersData.TryGetValue(positionUpdate.playerId, out var player))
         {
             player.position = positionUpdate.position;
-            _players[positionUpdate.playerId] = player;
+            _playersData[positionUpdate.playerId] = player;
         }
 
         UpdatePlayersFromPlayerData();
@@ -105,10 +105,10 @@ public abstract class NetworkManager
     {
         var stateUpdate = StateUpdateMessage.Deserialize(reader);
 
-        if (_players.TryGetValue(stateUpdate.playerId, out var player))
+        if (_playersData.TryGetValue(stateUpdate.playerId, out var player))
         {
             player.state = stateUpdate.state;
-            _players[stateUpdate.playerId] = player;
+            _playersData[stateUpdate.playerId] = player;
         }
 
         UpdatePlayersFromPlayerData();
@@ -119,10 +119,10 @@ public abstract class NetworkManager
     {
         var facingUpdate = FacingUpdateMessage.Deserialize(reader);
 
-        if (_players.TryGetValue(facingUpdate.playerId, out var player))
+        if (_playersData.TryGetValue(facingUpdate.playerId, out var player))
         {
             player.facing = facingUpdate.facing;
-            _players[facingUpdate.playerId] = player;
+            _playersData[facingUpdate.playerId] = player;
         }
 
         UpdatePlayersFromPlayerData();

@@ -11,15 +11,15 @@ public partial class GameHost
     {
         var writer = new NetDataWriter();
         writer.Put((byte)MessageType.AllPlayersSnapshot);
-        writer.Put(_players.Count);
+        writer.Put(_playersData.Count);
 
-        foreach (var player in _players.Values)
+        foreach (var player in _playersData.Values)
         {
             player.Serialize(writer);
         }
 
         peer.Send(writer, DeliveryMethod.ReliableOrdered);
-        Console.WriteLine($"[HOST] Sent snapshot with {_players.Count} players to peer");
+        Console.WriteLine($"[HOST] Sent snapshot with {_playersData.Count} players to peer");
     }
 
     private void BroadcastPlayerJoined(PlayerData player, NetPeer? excludePeer = null)
@@ -52,7 +52,7 @@ public partial class GameHost
         _netManager.SendToAll(writer, DeliveryMethod.Sequenced, excludePeer);
     }
 
-    // Keeping this as specific Broadcast example just in case templated Broadcast is slow
+    // Keeping this as specific Broadcast example just in case templated Broadcast is slow and I want to go back
     // public void BroadcastPlayerUpdate(PlayerData playerData, NetPeer? excludePeer = null)
     // {
     //     var writer = new NetDataWriter();
@@ -64,11 +64,10 @@ public partial class GameHost
 
     public void UpdateLocalPlayerPosition(Point2 position)
     {
-        if (!_players.ContainsKey(HostPlayerId)) return;
+        if (!_playersData.TryGetValue(HostPlayerId, out var player)) return;
 
-        var player = _players[HostPlayerId];
         player.positionPayload = new Point2Payload(position.X, position.Y);
-        _players[HostPlayerId] = player;
+        _playersData[HostPlayerId] = player;
 
         var positionUpdate = new PositionUpdateMessage
         {
@@ -81,11 +80,10 @@ public partial class GameHost
 
     public void UpdateLocalPlayerState(int state)
     {
-        if (!_players.ContainsKey(HostPlayerId)) return;
+        if (!_playersData.TryGetValue(HostPlayerId, out var player)) return;
 
-        var player = _players[HostPlayerId];
         player.state = state;
-        _players[HostPlayerId] = player;
+        _playersData[HostPlayerId] = player;
 
         var stateUpdate = new StateUpdateMessage
         {
@@ -98,11 +96,10 @@ public partial class GameHost
 
     public void UpdateLocalPlayerFacing(Signs facing)
     {
-        if (!_players.ContainsKey(HostPlayerId)) return;
+        if (!_playersData.TryGetValue(HostPlayerId, out var player)) return;
 
-        var player = _players[HostPlayerId];
         player.facing = facing == Signs.Positive ? true : false;
-        _players[HostPlayerId] = player;
+        _playersData[HostPlayerId] = player;
 
         var facingUpdate = new FacingUpdateMessage
         {
@@ -115,22 +112,13 @@ public partial class GameHost
 
     public void UpdateLocalPlayer(Point2 position, Signs facing, Player.States state)
     {
-        if (!_players.ContainsKey(HostPlayerId)) return;
+        if (!_playersData.TryGetValue(HostPlayerId, out var player)) return;
 
-        var player = _players[HostPlayerId];
         player.position = position;
-        player.facing = facing == Signs.Positive ? true : false;
+        player.facing = facing == Signs.Positive;
         player.state = (int)state;
-        _players[HostPlayerId] = player;
+        _playersData[HostPlayerId] = player;
 
-        var playerUpdate = new PlayerData
-        {
-            playerId = player.playerId,
-            position = player.position,
-            facing = player.facing,
-            state = player.state
-        };
-
-        BroadcastUpdate(MessageType.PlayerUpdate, playerUpdate, null);
+        BroadcastUpdate(MessageType.PlayerUpdate, player, null);
     }
 }

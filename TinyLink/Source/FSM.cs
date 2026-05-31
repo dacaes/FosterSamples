@@ -20,33 +20,34 @@ public class State<TState>
 class Transition<TState>
 {
 	public TState To { get; }
-	public string? TriggerName { get; }
+	public string? Trigger { get; }
 	public Func<bool>? Condition { get; }
 
 	public Transition(TState to, string? trigger = null, Func<bool>? condition = null)
 	{
 		To = to;
-		TriggerName = trigger;
+		Trigger = trigger;
 		Condition = condition;
 	}
 
-	public bool CanTransition()
+	public bool CanTransition(HashSet<string> activeTriggers)
 	{
-		return Condition == null || Condition();
+		return (Trigger == null || activeTriggers.Contains(Trigger)) && (Condition == null || Condition());
 	}
 }
 
 public class StateMachine<TState> where TState : Enum
 {
-	public Action? OnAnyEnter { get; set; } // Invoked after specific state OnEnter
-	public Action? OnAnyExit { get; set; } // Invoked after specific state OnExit
+	public Action? OnAnyEnter { get; set; } // Invoked OnEnter any state
+	public Action? OnAnyExit { get; set; } // Invoked OnExit any state
 
 	private readonly Dictionary<TState, State<TState>> _states = new();
-	private readonly List<Transition<TState>> _anyTransitions = new(); // any state transitions
+	private readonly List<Transition<TState>> _globalTransitions = new();
 	private readonly Dictionary<TState, List<Transition<TState>>> _transitions = new();
-	private readonly HashSet<string> _triggers = new();
+	private readonly HashSet<string> _activeTriggers = new();
 
 	private TState? _currentStateKey;
+	public TState CurrentState => _currentStateKey ?? throw new InvalidOperationException("FSM has no current state set.");
 	private State<TState>? _currentState;
 
 	public State<TState> AddState(TState key, State<TState> state)
@@ -55,14 +56,19 @@ public class StateMachine<TState> where TState : Enum
 		return state;
 	}
 
-	public void AddAnyTransition(TState to, string? trigger = null, Func<bool>? condition = null)
+	public void AddGlobalTransition(TState to, string? trigger = null, Func<bool>? condition = null)
 	{
-		_anyTransitions.Add(new Transition<TState>(to, trigger, condition));
+		_globalTransitions.Add(new Transition<TState>(to, trigger, condition));
 	}
 
-	public void AddAnyTrigger(string triggerName, TState to)
+	public void AddGlobalConditionTransition(TState to, Func<bool> condition)
 	{
-		_anyTransitions.Add(new Transition<TState>(to, trigger: triggerName));
+		_globalTransitions.Add(new Transition<TState>(to, condition: condition));
+	}
+
+	public void AddGlobalTriggerTransition(TState to, string trigger)
+	{
+		_globalTransitions.Add(new Transition<TState>(to, trigger: trigger));
 	}
 
 	public void AddTransition(TState from, TState to, string? trigger = null, Func<bool>? condition = null)
@@ -73,9 +79,25 @@ public class StateMachine<TState> where TState : Enum
 		_transitions[from].Add(new Transition<TState>(to, trigger, condition));
 	}
 
-	public void ActivateTrigger(string triggerName)
+	public void AddConditionTransition(TState from, TState to, Func<bool> condition)
 	{
-		_triggers.Add(triggerName);
+		if (!_transitions.ContainsKey(from))
+			_transitions[from] = new List<Transition<TState>>();
+
+		_transitions[from].Add(new Transition<TState>(to, condition: condition));
+	}
+
+	public void AddTriggerTransition(TState from, TState to, string trigger)
+	{
+		if (!_transitions.ContainsKey(from))
+			_transitions[from] = new List<Transition<TState>>();
+
+		_transitions[from].Add(new Transition<TState>(to, trigger: trigger));
+	}
+
+	public void ActivateTrigger(string trigger)
+	{
+		_activeTriggers.Add(trigger);
 	}
 
 	public void SetState(TState newState)
@@ -108,16 +130,13 @@ public class StateMachine<TState> where TState : Enum
 
 		// Console.WriteLine(_currentStateKey);
 
-		// Check any state transitions
-		foreach (var t in _anyTransitions)
+		// Check global state transitions
+		foreach (var t in _globalTransitions)
 		{
-			bool triggered = t.TriggerName == null || _triggers.Contains(t.TriggerName);
-			bool conditionMet = t.CanTransition();
-
-			if (triggered && conditionMet)
+			if (t.CanTransition(_activeTriggers))
 			{
-				if (t.TriggerName != null)
-					_triggers.Remove(t.TriggerName);
+				if (t.Trigger != null)
+					_activeTriggers.Remove(t.Trigger);
 
 				SetState(t.To);
 				return;
@@ -129,20 +148,13 @@ public class StateMachine<TState> where TState : Enum
 		{
 			foreach (var t in transitions)
 			{
-				// Trigger-based check: true if no trigger required or trigger is active
-				bool triggered = t.TriggerName == null || _triggers.Contains(t.TriggerName);
-
-				// Condition-based check
-				bool conditionMet = t.CanTransition();
-
-				if (triggered && conditionMet)
+				if (t.CanTransition(_activeTriggers))
 				{
-					// Consume the trigger if used
-					if (t.TriggerName != null)
-						_triggers.Remove(t.TriggerName);
+					if (t.Trigger != null)
+						_activeTriggers.Remove(t.Trigger);
 
 					SetState(t.To);
-					return; // exit after first valid transition
+					return;
 				}
 			}
 		}
@@ -151,6 +163,8 @@ public class StateMachine<TState> where TState : Enum
 		_currentState?.OnUpdate?.Invoke();
 	}
 
-	public TState CurrentStateKey => _currentStateKey ?? throw new InvalidOperationException("FSM has no current state set.");
-	public State<TState> CurrentState => _currentState ?? throw new InvalidOperationException("FSM has no current state set.");
+	public void UpdateCurrentState()
+	{
+		_currentState?.OnUpdate?.Invoke();
+	}
 }

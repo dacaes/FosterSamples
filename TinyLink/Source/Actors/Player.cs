@@ -45,7 +45,7 @@ public class Player : Actor
 	private bool attackImpulseOpportunityConsumed = false;
 
 	public StateMachine<States> fsm = new();
-	public bool IsClimbing => fsm.CurrentStateKey is States.Climbing or States.ClimbingIdle or States.LandOnClimbable or States.EnterClimbable;
+	public bool IsClimbing => fsm.CurrentState is States.Climbing or States.ClimbingIdle or States.LandOnClimbable or States.EnterClimbable;
 
 	public Player()
 	{
@@ -160,7 +160,13 @@ public class Player : Actor
 		// Start
 		fsm.AddState(States.Start, new State<States>()).OnUpdate = () => StartState();
 
-		// Transitions
+		// Reset the state duration when entering any state
+		fsm.OnAnyEnter = () => stateDuration = 0f;
+
+		// Initial state
+		fsm.SetState(States.Start);
+
+		// Add condition based transitions
 		fsm.AddTransition(States.Normal, States.Airborne, condition: () => !grounded);
 		fsm.AddTransition(States.Normal, States.Attack, condition: () => Controls.Attack.ConsumePress());
 		fsm.AddTransition(States.Normal, States.LandOnClimbable, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && !grounded); // was in the air and contacted climbable
@@ -180,19 +186,13 @@ public class Player : Actor
 		fsm.AddTransition(States.Airborne, States.Attack, condition: () => Controls.Attack.ConsumePress());
 		fsm.AddTransition(States.Airborne, States.EnterClimbable, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && Controls.Move.IntValue.Y < 0);
 
-		// Add triggers
-		fsm.AddAnyTrigger("Normal", States.Normal);
-		fsm.AddAnyTrigger("Climbing", States.Climbing);
-		fsm.AddAnyTrigger("ClimbingIdle", States.ClimbingIdle);
-		fsm.AddAnyTrigger("EnterClimbable", States.EnterClimbable);
-		fsm.AddAnyTrigger("Airborne", States.Airborne);
-		fsm.AddAnyTrigger("Hurt", States.Hurt);
-
-		// Reset the state duration when entering any state
-		fsm.OnAnyEnter = () => stateDuration = 0f;
-
-		// Initial state
-		fsm.SetState(States.Start);
+		// Add triggers based global transitions
+		fsm.AddGlobalTransition(States.Normal, trigger: "Normal");
+		fsm.AddGlobalTransition(States.Climbing, trigger: "Climbing");
+		fsm.AddGlobalTransition(States.ClimbingIdle, trigger: "ClimbingIdle");
+		fsm.AddGlobalTransition(States.EnterClimbable, trigger: "EnterClimbable");
+		fsm.AddGlobalTransition(States.Airborne, trigger: "Airborne");
+		fsm.AddGlobalTransition(States.Hurt, trigger: "Hurt");
 	}
 
 	public override void Update()
@@ -209,9 +209,9 @@ public class Player : Actor
 
 		if(!IsNetworkGhost)
 			fsm.Update();
-		else	// with network players we don't want to run the fsm update, to avoid local transitions, we just want the state logics
-			fsm.CurrentState?.OnUpdate?.Invoke();
-		
+		else
+			fsm.UpdateCurrentState();
+
 		// if(IsNetworkGhost) System.Console.WriteLine(fsm.CurrentState);
 
 		if (ducking)
@@ -232,7 +232,7 @@ public class Player : Actor
 		if (!grounded && !IsClimbing)
 		{
 			float grav = Gravity;
-			if (fsm.CurrentStateKey == States.Airborne && MathF.Abs(Velocity.Y) < 20 && Controls.Jump.Down)
+			if (fsm.CurrentState == States.Airborne && MathF.Abs(Velocity.Y) < 20 && Controls.Jump.Down)
 				grav *= 0.40f;	// air momentum at the peak of the jump
 			Velocity.Y += grav * Time.Delta;
 		}
