@@ -42,14 +42,13 @@ public partial class GameHost
         Console.WriteLine($"[HOST] Broadcasted player {playerId} left");
     }
 
-    public void BroadcastUpdate<T>(MessageType messageType, T update, NetPeer? excludePeer = null) 
-        where T : struct, ISerializable<T>
+    protected override void BroadcastUpdate<T>(MessageType messageType, T update, NetPeer? excludePeer = null, DeliveryMethod deliveryMethod = DeliveryMethod.Sequenced)
     {
         var writer = new NetDataWriter();
         writer.Put((byte)messageType);
         update.Serialize(writer);
 
-        _netManager.SendToAll(writer, DeliveryMethod.Sequenced, excludePeer);
+        _netManager.SendToAll(writer, deliveryMethod, excludePeer);
     }
 
     // Keeping this as specific Broadcast example just in case templated Broadcast is slow and I want to go back
@@ -61,64 +60,4 @@ public partial class GameHost
 
     //     _netManager.SendToAll(writer, DeliveryMethod.Sequenced, excludePeer);
     // }
-
-    public void UpdateLocalPlayerPosition(Point2 position)
-    {
-        if (!_playersData.TryGetValue(HostPlayerId, out var player)) return;
-
-        player.positionPayload = new Point2Payload(position.X, position.Y);
-        _playersData[HostPlayerId] = player;
-
-        var positionUpdate = new PositionUpdateMessage
-        {
-            playerId = player.playerId,
-            positionPayload = new Point2Payload(position.X, position.Y)
-        };
-
-         BroadcastUpdate(MessageType.PositionUpdate, positionUpdate, null);
-    }
-
-    public void UpdateLocalPlayerState(int state)
-    {
-        if (!_playersData.TryGetValue(HostPlayerId, out var player)) return;
-
-        player.state = state;
-        _playersData[HostPlayerId] = player;
-
-        var stateUpdate = new StateUpdateMessage
-        {
-            playerId = player.playerId,
-            state = player.state
-        };
-
-        BroadcastUpdate(MessageType.StateUpdate, stateUpdate, null);
-    }
-
-    public void UpdateLocalPlayerFacing(Signs facing)
-    {
-        if (!_playersData.TryGetValue(HostPlayerId, out var player)) return;
-
-        player.facing = facing == Signs.Positive ? true : false;
-        _playersData[HostPlayerId] = player;
-
-        var facingUpdate = new FacingUpdateMessage
-        {
-            playerId = player.playerId,
-            facing = player.facing
-        };
-
-        BroadcastUpdate(MessageType.FacingUpdate, facingUpdate, null);
-    }
-
-    public void UpdateLocalPlayer(Point2 position, Signs facing, Player.States state)
-    {
-        if (!_playersData.TryGetValue(HostPlayerId, out var player)) return;
-
-        player.position = position;
-        player.facing = facing == Signs.Positive;
-        player.state = (int)state;
-        _playersData[HostPlayerId] = player;
-
-        BroadcastUpdate(MessageType.PlayerUpdate, player, null);
-    }
 }

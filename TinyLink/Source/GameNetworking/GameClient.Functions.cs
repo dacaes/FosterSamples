@@ -7,6 +7,8 @@ namespace GameNetworking;
 
 public partial class GameClient
 {
+    public Action<int> OnHandleAssignedPlayerId;
+
      private void HandleAllPlayersSnapshot(NetPacketReader reader)
     {
         int count = reader.GetInt();
@@ -20,14 +22,15 @@ public partial class GameClient
 
         UpdatePlayersFromPlayerData();
 
-        Console.WriteLine($"[CLIENT] Received snapshot with {count} players. Local Player ID: {_localPlayerId}");
+        Console.WriteLine($"[CLIENT] Received snapshot with {count} players. Local Player ID: {LocalPlayerId}");
     }
 
     private void HandleAssignedPlayerId(NetPacketReader reader)
     {
         int id = reader.GetInt();
-        _localPlayerId = id;
-        Console.WriteLine($"[CLIENT] Assigned local player ID: {_localPlayerId}");
+        LocalPlayerId = id;
+        Console.WriteLine($"[CLIENT] Assigned local player ID: {LocalPlayerId}");
+        OnHandleAssignedPlayerId?.Invoke(LocalPlayerId);
     }
 
     private void HandlePlayerJoined(NetPacketReader reader)
@@ -47,7 +50,7 @@ public partial class GameClient
         Console.WriteLine($"[CLIENT] Player {playerId} left");
     }
 
-    public void SendPositionUpdate(int x, int y)
+    protected override void BroadcastUpdate<T>(MessageType messageType, T update,  NetPeer? excludePeer = null, DeliveryMethod deliveryMethod = DeliveryMethod.Sequenced)
     {
         if (!IsConnected())
         {
@@ -55,81 +58,11 @@ public partial class GameClient
             return;
         }
 
-        var posUpdate = new PositionUpdateMessage
-        {
-            playerId = _localPlayerId,
-            positionPayload = new Point2Payload(x, y)
-        };
-
         var writer = new NetDataWriter();
-        writer.Put((byte)MessageType.PositionUpdate);
-        posUpdate.Serialize(writer);
+        writer.Put((byte)messageType);
+        update.Serialize(writer);
 
-        _serverPeer.Send(writer, DeliveryMethod.Sequenced);
-    }
-
-    public void SendStateUpdate(int state)
-    {
-        if (!IsConnected())
-        {
-            Console.WriteLine("[CLIENT] Not connected to server");
-            return;
-        }
-
-        var stateUpdate = new StateUpdateMessage
-        {
-            playerId = _localPlayerId,
-            state = state
-        };
-
-        var writer = new NetDataWriter();
-        writer.Put((byte)MessageType.StateUpdate);
-        stateUpdate.Serialize(writer);
-
-        _serverPeer.Send(writer, DeliveryMethod.Sequenced);
-    }
-
-    public void SendFacingUpdate(Signs facing)
-    {
-        if (!IsConnected())
-        {
-            Console.WriteLine("[CLIENT] Not connected to server");
-            return;
-        }
-
-        var facingUpdate = new FacingUpdateMessage
-        {
-            playerId = _localPlayerId,
-            facing = facing == Signs.Positive ? true : false
-        };
-
-        var writer = new NetDataWriter();
-        writer.Put((byte)MessageType.FacingUpdate);
-        facingUpdate.Serialize(writer);
-
-        _serverPeer.Send(writer, DeliveryMethod.Sequenced);
-    }
-
-    public void SendPlayerUpdate(Point2 position, Signs facing, Player.States state)
-    {
-        if (!IsConnected())
-        {
-            Console.WriteLine("[CLIENT] Not connected to server");
-            return;
-        }
-
-        var playerUpdate = new PlayerData
-        {
-            playerId = _localPlayerId,
-            position = position,
-            facing = facing == Signs.Positive ? true : false,
-            state = (int)state
-        };
-
-        var writer = new NetDataWriter();
-        writer.Put((byte)MessageType.PlayerUpdate);
-        playerUpdate.Serialize(writer);
-
-        _serverPeer.Send(writer, DeliveryMethod.Sequenced);
+        // excludePeer is only used by the Host implementation
+        _serverPeer.Send(writer, deliveryMethod);
     }
 }

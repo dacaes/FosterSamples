@@ -1,3 +1,4 @@
+using System.Reflection.Metadata.Ecma335;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using TinyLink;
@@ -9,7 +10,8 @@ public partial class GameHost : NetworkManager
     private int _nextPlayerId = 1;
     private const int MaxPlayers = 32;
     private const int HostPlayerId = 0;
-	public override int GetLocalPlayerId() => HostPlayerId;
+	public override int LocalPlayerId {get => HostPlayerId; protected set {}}   // no set, it is a constant value for Host
+
     protected Dictionary<int, int> _peerIdToPlayerId = new Dictionary<int, int>(); // maps peer.Id to playerId
 
 
@@ -27,13 +29,13 @@ public partial class GameHost : NetworkManager
 
     public GameHost(Game game, int port = 9050) : base(game)
     {
-        _playersData[HostPlayerId] = new PlayerData
+        _playersData[LocalPlayerId] = new PlayerData
         {
-            playerId = HostPlayerId,
+            playerId = LocalPlayerId,
             positionPayload = new Point2Payload(0, 0),
             state = (int) Player.States.Start
         };
-        Console.WriteLine($"[HOST] Local player created with ID {HostPlayerId}");
+        Console.WriteLine($"[HOST] Local player created with ID {LocalPlayerId}");
 
         if (_netManager.Start(port))
         {

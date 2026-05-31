@@ -50,7 +50,12 @@ public class Game
 		#region Networking
 		isHost = manager.IsHost;
         if(isHost) GameHost.RunHost(this, out networkManager);
-        else GameClient.RunClient(this, out networkManager);
+        else
+		{
+			GameClient.RunClient(this, out networkManager);
+
+			((GameClient) networkManager).OnHandleAssignedPlayerId += (id) => localPlayer.id = id;
+		}
 		#endregion
 
 		Manager = manager;
@@ -105,8 +110,12 @@ public class Game
 					#region Networking
 					if(Actors[i] is Player player)
 					{
-						player.id = networkManager.GetLocalPlayerId();
-						localPlayer = player;
+						if(localPlayer != player)
+						{
+							player.id = networkManager.LocalPlayerId;
+							localPlayer = player;
+							System.Console.WriteLine("success");
+						}
 					}
 					#endregion
 				}
@@ -116,6 +125,13 @@ public class Game
 				{
 					// System.Console.WriteLine("network peer id: " + player.id);
 					player.Update();
+				}
+
+				foreach (var player in networkManager.PlayersData.Values)
+				{
+					if(isHost) Console.Write("[Host] -> ");
+					else Console.Write("[Client] -> ");
+					Console.WriteLine($"player data id: {player.playerId} state: {(Player.States)player.state}");
 				}
 				#endregion
 
@@ -147,21 +163,9 @@ public class Game
 		}
 
 		#region Networking
-		if (networkManager is GameHost host)
-		{
-			host.UpdateLocalPlayer(localPlayer.Position, localPlayer.Facing, localPlayer.fsm.CurrentState);
-		}
-		else if(networkManager is GameClient client)
-		{
-			// update local id if assigned
-			if (localPlayer.id == -1)
-			{
-				int assigned = client.GetLocalPlayerId();
-				if (assigned != -1) localPlayer.id = assigned;
-			}
-
-			client.SendPlayerUpdate(localPlayer.Position, localPlayer.Facing, localPlayer.fsm.CurrentState);
-		}
+		networkManager.UpdateLocalPlayer(localPlayer.Position, localPlayer.Facing, localPlayer.fsm.CurrentState);
+		// if(isHost) Console.WriteLine($"[Host] -> localPlayerId {localPlayer.id}");
+		// else Console.WriteLine($"[Client] -> localPlayerId {localPlayer.id}");
 		#endregion
 	}
 

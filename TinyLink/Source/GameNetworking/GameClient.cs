@@ -7,8 +7,8 @@ namespace GameNetworking;
 public partial class GameClient : NetworkManager
 {
     private NetPeer _serverPeer = null!;
-    private int _localPlayerId = -1;
-    public override int GetLocalPlayerId() => _localPlayerId;
+    protected int _localPlayerId = -1;
+    public override int LocalPlayerId {get => _localPlayerId; protected set => _localPlayerId = value;}
 
     public static void RunClient(Game game, out NetworkManager networkManager)
     {
