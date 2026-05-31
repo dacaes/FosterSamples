@@ -97,7 +97,7 @@ public partial class GameClient : NetworkManager
                 HandleStateUpdate(reader);
                 break;
             
-            case MessageType.FacingUpdate:
+            case MessageType.FlagsUpdate:
                 HandleStateUpdate(reader);
                 break;
         }

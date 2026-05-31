@@ -131,12 +131,12 @@ public class Game
 					player.Update();
 				}
 
-				foreach (var player in networkManager.PlayersData.Values)
-				{
-					if(isHost) Console.Write("[Host] -> ");
-					else Console.Write("[Client] -> ");
-					Console.WriteLine($"player data id: {player.playerId} state: {(Player.States)player.state}");
-				}
+				// foreach (var player in networkManager.PlayersData.Values)
+				// {
+				// 	if(isHost) Console.Write("[Host] -> ");
+				// 	else Console.Write("[Client] -> ");
+				// 	Console.WriteLine($"player data id: {player.playerId} state: {(Player.States)player.state}");
+				// }
 				#endregion
 
 				// screen shaking
@@ -167,7 +167,7 @@ public class Game
 		}
 
 		#region Networking
-		networkManager.UpdateLocalPlayer(localPlayer.Position, localPlayer.Facing, localPlayer.fsm.CurrentState);
+		networkManager.UpdateLocalPlayer(localPlayer.Position, localPlayer.fsm.CurrentState, localPlayer.Facing, localPlayer.Moving);
 		// if(isHost) Console.WriteLine($"[Host] -> localPlayerId {localPlayer.id}");
 		// else Console.WriteLine($"[Client] -> localPlayerId {localPlayer.id}");
 		#endregion

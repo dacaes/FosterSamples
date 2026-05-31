@@ -13,7 +13,8 @@ public abstract partial class NetworkManager
             if (NetworkPlayers.TryGetValue(playerData.playerId, out var player))
             {
                 player.Position = playerData.position;
-                player.Facing = playerData.facing ? Signs.Positive : Signs.Negative;
+                player.Facing = playerData.Facing;
+                player.NetworkMoving = playerData.Moving;
                 player.fsm.SetState((Player.States)playerData.state);
             }
             else if(LocalPlayerId != playerData.playerId) // we don't want to add ourselves
@@ -23,7 +24,8 @@ public abstract partial class NetworkManager
                     networkId = playerData.playerId,
                     IsNetworkGhost = true,
                     Position = playerData.position,
-                    Facing = playerData.facing ? Signs.Positive : Signs.Negative,
+                    Facing = playerData.Facing,
+                    NetworkMoving = playerData.Moving,
                     Game = game
                 };
                 newPlayer.fsm.SetState((Player.States)playerData.state);
@@ -40,7 +42,7 @@ public abstract partial class NetworkManager
         if (_playersData.TryGetValue(playerData.playerId, out var player))
         {
             player.position = playerData.position;
-            player.facing = playerData.facing;
+            player.flagsPayload = playerData.flagsPayload;
             player.state = playerData.state;
             _playersData[playerData.playerId] = player;
         }
@@ -77,13 +79,13 @@ public abstract partial class NetworkManager
         return stateUpdate;
     }
 
-    protected FacingUpdateMessage HandleFacingUpdate(NetPacketReader reader)
+    protected FlagsUpdateMessage HandleFlagsUpdate(NetPacketReader reader)
     {
-        var facingUpdate = FacingUpdateMessage.Deserialize(reader);
+        var facingUpdate = FlagsUpdateMessage.Deserialize(reader);
 
         if (_playersData.TryGetValue(facingUpdate.playerId, out var player))
         {
-            player.facing = facingUpdate.facing;
+            player.flagsPayload = facingUpdate.flagsPayload;
             _playersData[facingUpdate.playerId] = player;
         }
 
@@ -91,12 +93,13 @@ public abstract partial class NetworkManager
         return facingUpdate;
     }
 
-    public void UpdateLocalPlayer(Point2 position, Signs facing, Player.States state)
+    public void UpdateLocalPlayer(Point2 position, Player.States state, Signs facing, bool moving)
     {
         if (!_playersData.TryGetValue(LocalPlayerId, out var player)) return;
 
         player.position = position;
-        player.facing = facing == Signs.Positive;
+        player.Facing = facing;
+        player.Moving = moving;
         player.state = (byte)state;
         _playersData[LocalPlayerId] = player;
 
@@ -139,15 +142,33 @@ public abstract partial class NetworkManager
     {
         if (!_playersData.TryGetValue(LocalPlayerId, out var player)) return;
 
-        player.facing = facing == Signs.Positive;
+        player.Facing = facing;
         _playersData[LocalPlayerId] = player;
 
-        var facingUpdate = new FacingUpdateMessage
+        var flagsUpdate = new FlagsUpdateMessage
         {
             playerId = player.playerId,
-            facing = player.facing
+            Facing = player.Facing,
+            Moving = player.Moving
         };
 
-        BroadcastUpdate(MessageType.FacingUpdate, facingUpdate, null);
+        BroadcastUpdate(MessageType.FlagsUpdate, flagsUpdate, null);
+    }
+
+    public void UpdateLocalPlayerMoving(bool moving)
+    {
+        if (!_playersData.TryGetValue(LocalPlayerId, out var player)) return;
+
+        player.Moving = moving;
+        _playersData[LocalPlayerId] = player;
+
+        var flagsUpdate = new FlagsUpdateMessage
+        {
+            playerId = player.playerId,
+            Facing = player.Facing,
+            Moving = player.Moving
+        };
+
+        BroadcastUpdate(MessageType.FlagsUpdate, flagsUpdate, null);
     }
 }

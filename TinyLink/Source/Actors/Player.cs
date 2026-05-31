@@ -4,11 +4,12 @@ using static Teca.Audio;
 
 namespace TinyLink;
 
-public class Player : Actor
+public partial class Player : Actor
 {
 	public enum States : byte
 	{
 		Normal,
+		Ducking,
 		EnterClimbable,
 		LandOnClimbable,
 		Climbing,
@@ -41,11 +42,11 @@ public class Player : Actor
 	private float stateDuration = 0;
 	private float jumpTimer = 0;
 	private bool grounded = false;
-	private bool ducking = false;
 	private bool attackImpulseOpportunityConsumed = false;
 
 	public StateMachine<States> fsm = new();
 	public bool IsClimbing => fsm.CurrentState is States.Climbing or States.ClimbingIdle or States.LandOnClimbable or States.EnterClimbable;
+	public bool IsDucking => fsm.CurrentState is States.Ducking;
 
 	public Player()
 	{
@@ -54,13 +55,17 @@ public class Player : Actor
 		Mask = Masks.Player;
 		IFrameTime = InvincibleDuration;
 		grounded = true;
-		Play("sword");
 
-		// Normal: in the ground, where you can walk, duck, jump...
+		// Normal
 		fsm.AddState(States.Normal, new State<States>(
 			onEnter: () => { Play("idle"); },
-			onUpdate: () => NormalState(),
-			onExit: () => ducking = false
+			onUpdate: () => NormalState()
+		));
+
+		//Ducking
+		fsm.AddState(States.Ducking, new State<States>(
+			onEnter: () => { Play("duck"); },
+			onUpdate: () => DuckingState()
 		));
 
 		// Land On Climbable: Just to do a cool effect when you transition from Airborne to climcable (e.g. Rope, Ladder)
@@ -124,6 +129,10 @@ public class Player : Actor
 
 		// Airborne: In the air
 		fsm.AddState(States.Airborne, new State<States>(
+			onEnter: () =>
+			{
+				Play("jump");
+			},
 			onUpdate: () =>
 			{
 				AirborneState();
@@ -158,7 +167,16 @@ public class Player : Actor
 		));
 
 		// Start
-		fsm.AddState(States.Start, new State<States>()).OnUpdate = () => StartState();
+		fsm.AddState(States.Start, new State<States>(
+			onEnter: () =>
+			{
+				Play("sword");
+			},
+			onUpdate: () =>
+			{
+				StartState();
+			}
+		));
 
 		// Reset the state duration when entering any state
 		fsm.OnAnyEnter = () => stateDuration = 0f;
@@ -167,9 +185,11 @@ public class Player : Actor
 		fsm.SetState(States.Start);
 
 		// Add condition based transitions
-		fsm.AddTransition(States.Normal, States.Airborne, condition: () => !grounded);
-		fsm.AddTransition(States.Normal, States.Attack, condition: () => Controls.Attack.ConsumePress());
-		fsm.AddTransition(States.Normal, States.LandOnClimbable, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && !grounded); // was in the air and contacted climbable
+		fsm.AddTransition(States.Normal, States.Ducking, condition: () => grounded && Controls.Move.IntValue.Y > 0);
+		fsm.AddTransition(States.Ducking, States.Normal, condition: () => !(grounded && Controls.Move.IntValue.Y > 0));
+
+		fsm.AddTransition([States.Normal, States.Ducking], States.Airborne, condition: () => !grounded);
+		fsm.AddTransition([States.Normal, States.Ducking], States.Attack, condition: () => Controls.Attack.ConsumePress());
 		fsm.AddTransition(States.Normal, States.EnterClimbable, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && Controls.Move.IntValue.Y < 0); // is in the ground and starts climbing
 		fsm.AddTransition(States.Normal, States.EnterClimbable, condition: () => OverlapsAny(Point2.Down * 12, Masks.Ladder) && Controls.Move.IntValue.Y > 0); // if on top of a ladder and going down
 
@@ -184,7 +204,7 @@ public class Player : Actor
 
 		fsm.AddTransition(States.Airborne, States.Normal, condition: () => grounded);
 		fsm.AddTransition(States.Airborne, States.Attack, condition: () => Controls.Attack.ConsumePress());
-		fsm.AddTransition(States.Airborne, States.EnterClimbable, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && Controls.Move.IntValue.Y < 0);
+		fsm.AddTransition(States.Airborne, States.LandOnClimbable, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && Controls.Move.IntValue.Y < 0);
 
 		// Add triggers based global transitions
 		fsm.AddGlobalTransition(States.Normal, trigger: "Normal");
@@ -197,7 +217,10 @@ public class Player : Actor
 
 	public override void Update()
 	{
-		if(IsNetworkGhost) Velocity = Vector2.Zero;
+		if(IsNetworkGhost)
+		{
+			Velocity = Vector2.Zero;
+		}
 
 		base.Update();
 
@@ -214,7 +237,7 @@ public class Player : Actor
 
 		// if(IsNetworkGhost) System.Console.WriteLine(fsm.CurrentState);
 
-		if (ducking)
+		if (IsDucking)
 			Hitbox = new(new RectInt(-4, -6, 8, 6));
 		else
 			Hitbox = new(new RectInt(-4, -12, 8, 12));
@@ -227,6 +250,14 @@ public class Player : Actor
 			if (!Controls.Jump.Down)
 				jumpTimer = 0;
 		}
+
+		// detect getting hit
+		if (OverlapsFirst(Masks.Enemy | Masks.Hazard) is Actor hit)
+			hit.Hit(this);
+
+		stateDuration += Time.Delta;
+
+		if(IsNetworkGhost) return;
 
 		// gravity
 		if (!grounded && !IsClimbing)
@@ -261,216 +292,6 @@ public class Player : Actor
 					Position = new (Position.X, Game.Bounds.Top);
 			}
 		}
-
-		// detect getting hit
-		if (OverlapsFirst(Masks.Enemy | Masks.Hazard) is Actor hit)
-			hit.Hit(this);
-
-		stateDuration += Time.Delta;
-	}
-
-	// TO DO ducking, moving and idling should be different states to sync well
-	public void NormalState()
-	{
-		// update ducking state
-		ducking = grounded && Controls.Move.IntValue.Y > 0;
-
-		// get input
-		var input = Controls.Move.IntValue.X;
-		// if (ducking)
-		// 	input = 0;
-
-		// sprite
-		if (ducking)
-			Play("duck");
-		else if (input == 0)
-			Play("idle");
-		else
-			Play("run");
-
-		// horizontal movement
-		{
-			// Acceleration
-			Velocity.X += input * GroundAccel * Time.Delta;
-
-			// Max Speed
-			var maxspd = MaxGroundSpeed;
-			maxspd = ducking ? maxspd * 0.3f : maxspd;
-			if (MathF.Abs(Velocity.X) > maxspd)
-				Velocity.X = Calc.Approach(Velocity.X, MathF.Sign(Velocity.X) * maxspd, 2000 * Time.Delta);
-
-			// Friction
-			if (input == 0)
-				Velocity.X = Calc.Approach(Velocity.X, 0, Friction * Time.Delta);
-
-			// Facing
-			if (!IsNetworkGhost && input != 0)
-				Facing = input;
-		}
-
-		// Start jumping
-		if (Controls.Jump.ConsumePress())
-		{
-			// Step down jumpthru or a ladder
-			if(Controls.Move.IntValue.Y > 0 && OverlapsAny(Point2.Down, Masks.Jumpthru | Masks.Ladder))
-			{
-				Position += Point2.Down;
-				fsm.ActivateTrigger("Airborne");
-			}
-			else
-				StartJump();
-		}
-	}
-
-	public void StartJump()
-	{
-		var input = Controls.Move.IntValue.X;
-		Squish = new Vector2(0.65f, 1.4f);
-		StopX();
-		Velocity.X = input * MaxAirSpeed;
-		jumpTimer = JumpTime;
-		if(input != 0)
-			Facing = input;
-		fsm.ActivateTrigger("Airborne");
-	}
-
-	public void AirborneState()
-	{
-		Play("jump");
-
-		var input = Controls.Move.IntValue.X;
-		// horizontal movement
-		{
-			// Acceleration
-			Velocity.X += input * AirAccel * Time.Delta;
-
-			// Max Speed
-			var maxspd = MaxAirSpeed;
-			if (MathF.Abs(Velocity.X) > maxspd)
-				Velocity.X = Calc.Approach(Velocity.X, MathF.Sign(Velocity.X) * maxspd, 2000 * Time.Delta);
-		}
-	}
-
-	public void ClimbingIdleState()
-	{
-		if (Controls.Jump.ConsumePress())
-		{
-			StartJump();
-		}
-	}
-
-	public void ClimbingState()
-	{
-		if(IsNetworkGhost) return;
-		// vertical movement
-		{
-			var input = Controls.Move.IntValue.Y;
-
-			// if (MathF.Abs(input) > 0)
-			// 	Play("climb");
-			// else
-			// 	Play("climb_idle");
-
-			// Climbing acceleration
-			Velocity.Y += input * 100 * Time.Delta;
-
-			var maxspd = MaxClimbingSpeed;
-			if (MathF.Abs(Velocity.Y) > maxspd)
-				Velocity.Y = Calc.Approach(Velocity.Y, MathF.Sign(Velocity.Y) * maxspd, 2000 * Time.Delta);
-
-			// Friction
-			if (input == 0)
-				Velocity.Y = Calc.Approach(Velocity.Y, 0, Friction * Time.Delta);
-
-			if(OverlapsAny(Masks.Rope))
-			{
-				if (!OverlapsAny(new Point2(0, -14), Masks.Rope) && Velocity.Y < 0)
-					StopY();
-			}
-			else if(!OverlapsAny(Masks.Ladder))
-			{
-				fsm.ActivateTrigger("Normal");
-				StopY();
-			}
-
-			// // Facing
-			// if (input != 0)
-			// 	Facing = input;
-		}
-
-		if (Controls.Jump.ConsumePress())
-		{
-			StartJump();
-		}
-	}
-
-	public void AttackState()
-	{
-		Play("attack", false);
-
-		RectInt? hitbox = null;
-
-		if (stateDuration < 0.2f)
-		{
-			hitbox = new RectInt(-16, -12, 17, 8);
-		}
-		else if (stateDuration < 0.50f)
-		{
-			hitbox = new RectInt(8, -8, 16, 8);
-			
-			if(grounded && !attackImpulseOpportunityConsumed)
-				Velocity.X = Facing * 60;
-				
-			attackImpulseOpportunityConsumed = true;
-		}
-
-		if (hitbox != null)
-		{
-# if DEBUG
-			attackHitbox = hitbox;
-#endif
-			var it = hitbox.Value;
-			if (Facing == Signs.Negative)
-				it.X = -(it.X + it.Width);
-			it += Position;
-
-			if (Game.OverlapsFirst(it, Masks.Enemy | Masks.Hazard) is Actor hit)
-				Hit(hit);
-		}
-
-		if (Grounded())
-			Velocity.X = Calc.Approach(Velocity.X, 0, AttackFriction * Time.Delta);
-
-		if (stateDuration >= Animation.Duration)
-		{
-			Play("idle");
-			if(grounded)
-				fsm.ActivateTrigger("Normal");
-			else
-				fsm.ActivateTrigger("Airborne");
-		}
-	}
-
-	public void HurtState()
-	{
-		Velocity.X = Calc.Approach(Velocity.X, 0, HurtFriction * Time.Delta);
-
-		if (stateDuration >= HurtDuration && Health > 0)
-		{
-			if(grounded)
-				fsm.ActivateTrigger("Normal");
-			else
-				fsm.ActivateTrigger("Airborne");
-		}
-
-		if (stateDuration >= DeathDuration && Health <= 0)
-			Game.ReloadRoom();
-	}
-
-	public void StartState()
-	{
-		if (stateDuration >= 1.0f)
-			fsm.ActivateTrigger("Normal");
 	}
 
 	public override void OnWasHit(Actor by)

@@ -121,9 +121,9 @@ public partial class GameHost : NetworkManager
                 BroadcastUpdate(MessageType.StateUpdate, stateUpdate, peer);
                 break;
 
-            case MessageType.FacingUpdate:
-                var facingUpdate = HandleFacingUpdate(reader);
-                BroadcastUpdate(MessageType.FacingUpdate, facingUpdate, peer);
+            case MessageType.FlagsUpdate:
+                var facingUpdate = HandleFlagsUpdate(reader);
+                BroadcastUpdate(MessageType.FlagsUpdate, facingUpdate, peer);
                 break;
 
             case MessageType.PlayerUpdate:

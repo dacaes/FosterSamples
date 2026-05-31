@@ -79,6 +79,15 @@ public class StateMachine<TState> where TState : Enum
 		_transitions[from].Add(new Transition<TState>(to, trigger, condition));
 	}
 
+	// Multiple states to one with same transition criteria
+	public void AddTransition(TState[] froms, TState to, string? trigger = null, Func<bool>? condition = null)
+	{
+		foreach (var from in froms)
+		{
+			AddTransition(from, to, trigger, condition);
+		}
+	}
+
 	public void AddConditionTransition(TState from, TState to, Func<bool> condition)
 	{
 		if (!_transitions.ContainsKey(from))
@@ -87,12 +96,28 @@ public class StateMachine<TState> where TState : Enum
 		_transitions[from].Add(new Transition<TState>(to, condition: condition));
 	}
 
+	public void AddConditionTransition(TState[] froms, TState to, Func<bool> condition)
+	{
+		foreach (var from in froms)
+		{
+			AddTransition(from, to, condition: condition);
+		}
+	}
+
 	public void AddTriggerTransition(TState from, TState to, string trigger)
 	{
 		if (!_transitions.ContainsKey(from))
 			_transitions[from] = new List<Transition<TState>>();
 
 		_transitions[from].Add(new Transition<TState>(to, trigger: trigger));
+	}
+
+	public void AddTriggerTransition(TState[] froms, TState to, string trigger)
+	{
+		foreach (var from in froms)
+		{
+			AddTransition(from, to, trigger: trigger);
+		}
 	}
 
 	public void ActivateTrigger(string trigger)
