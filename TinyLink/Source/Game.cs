@@ -1,10 +1,17 @@
 using System.Numerics;
 using Foster.Framework;
+using GameNetworking;
 
 namespace TinyLink;
 
 public class Game
 {
+	#region Networking
+    private NetworkManager networkManager;
+    private bool isHost;
+    public Player localPlayer = null!;
+	#endregion
+
 	public const int Width = 240;
 	public const int Height = 135;
 	public const int Columns = Width / TileSize;
@@ -40,6 +47,12 @@ public class Game
 
 	public Game(Manager manager, Point2 start)
 	{
+		#region Networking
+		isHost = manager.IsHost;
+        if(isHost) GameHost.RunHost(this, out networkManager);
+        else GameClient.RunClient(this, out networkManager);
+		#endregion
+
 		Manager = manager;
 		Batcher = new(manager.GraphicsDevice, name: "GameBatcher");
 		Screen = new(manager.GraphicsDevice, Width, Height, name: "GameScreen");
@@ -57,6 +70,10 @@ public class Game
 		// Don't run normal gameplay loop if no room is loaded
 		if (room == null)
 			return;
+
+		#region Networking
+		networkManager.Poll();
+		#endregion
 
 		// Run Game normally when not moving to a new room
 		if (nextRoom == null)
@@ -82,7 +99,25 @@ public class Game
 
 				// Update Actors
 				for (int i = 0; i < Actors.Count; i ++)
+				{
 					Actors[i].Update();
+
+					#region Networking
+					if(Actors[i] is Player player)
+					{
+						player.id = networkManager.GetLocalPlayerId();
+						localPlayer = player;
+					}
+					#endregion
+				}
+
+				#region Networking
+				foreach (var player in networkManager.NetworkPlayers.Values)
+				{
+					// System.Console.WriteLine("network peer id: " + player.id);
+					player.Update();
+				}
+				#endregion
 
 				// screen shaking
 				if (shaking > 0)
@@ -110,6 +145,24 @@ public class Game
 			nextRoom = null;
 			Hitstun(0.1f);
 		}
+
+		#region Networking
+		if (networkManager is GameHost host)
+		{
+			host.UpdateLocalPlayer(localPlayer.Position, localPlayer.Facing, localPlayer.fsm.CurrentStateKey);
+		}
+		else if(networkManager is GameClient client)
+		{
+			// update local id if assigned
+			if (localPlayer.id == -1)
+			{
+				int assigned = client.GetLocalPlayerId();
+				if (assigned != -1) localPlayer.id = assigned;
+			}
+
+			client.SendPlayerUpdate(localPlayer.Position, localPlayer.Facing, localPlayer.fsm.CurrentStateKey);
+		}
+		#endregion
 	}
 
 	public void Render(in RectInt viewport)
@@ -117,6 +170,10 @@ public class Game
 		// draw gameplay to screen
 		Screen.Clear(0x150e22);
 		Batcher.PushMatrix(-(Point2)Camera + shake);
+
+		#region Networking		
+		rendering.AddRange(networkManager.NetworkPlayers.Values);
+		#endregion
 
 		// draw actors
 		rendering.AddRange(Actors);

@@ -9,8 +9,10 @@ public class Player : Actor
 	public enum States
 	{
 		Normal,
+		EnterClimbable,
 		LandOnClimbable,
 		Climbing,
+		ClimbingIdle,
 		Airborne,
 		Attack,
 		Hurt,
@@ -42,7 +44,8 @@ public class Player : Actor
 	private bool ducking = false;
 	private bool attackImpulseOpportunityConsumed = false;
 
-	private StateMachine<States> fsm = new();
+	public StateMachine<States> fsm = new();
+	public bool IsClimbing => fsm.CurrentStateKey is States.Climbing or States.ClimbingIdle or States.LandOnClimbable or States.EnterClimbable;
 
 	public Player()
 	{
@@ -65,12 +68,12 @@ public class Player : Actor
 			onEnter: () =>
 			{
 				Squish = new Vector2(0.65f, 1.4f);
-				fsm.ActivateTrigger("Climbing");
+				fsm.ActivateTrigger("EnterClimbable");
 			}
 		));
 
-		// Climbing
-		fsm.AddState(States.Climbing, new State<States>(
+		//EnterClimbable
+		fsm.AddState(States.EnterClimbable, new State<States>(
 			onEnter: () =>
 			{
 				// climb overlapping rope or ladder
@@ -89,8 +92,32 @@ public class Player : Actor
 						Position = ladder.Position + new Point2(4, 6);
 					}
 				}
-
+				Play("climb_idle");
 				Stop();
+
+				if(MathF.Abs(Controls.Move.IntValue.Y) > 0)
+					fsm.ActivateTrigger("Climbing");
+				else
+					fsm.ActivateTrigger("ClimbingIdle");
+			}
+		));
+
+		//ClimbingIdle
+		fsm.AddState(States.ClimbingIdle, new State<States>(
+			onEnter: () =>
+			{
+				Play("climb_idle");
+				Stop();
+			},
+			onUpdate: () => ClimbingIdleState()
+		));
+		
+
+		// Climbing
+		fsm.AddState(States.Climbing, new State<States>(
+			onEnter: () =>
+			{
+				Play("climb");
 			},
 			onUpdate: () => ClimbingState()
 		));
@@ -137,21 +164,27 @@ public class Player : Actor
 		fsm.AddTransition(States.Normal, States.Airborne, condition: () => !grounded);
 		fsm.AddTransition(States.Normal, States.Attack, condition: () => Controls.Attack.ConsumePress());
 		fsm.AddTransition(States.Normal, States.LandOnClimbable, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && !grounded); // was in the air and contacted climbable
-		fsm.AddTransition(States.Normal, States.Climbing, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && Controls.Move.IntValue.Y < 0); // is in the ground and starts climbing
-		fsm.AddTransition(States.Normal, States.Climbing, condition: () => OverlapsAny(Point2.Down, Masks.Ladder) && Controls.Move.IntValue.Y > 0); // if on top of a ladder and going down
+		fsm.AddTransition(States.Normal, States.EnterClimbable, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && Controls.Move.IntValue.Y < 0); // is in the ground and starts climbing
+		fsm.AddTransition(States.Normal, States.EnterClimbable, condition: () => OverlapsAny(Point2.Down * 12, Masks.Ladder) && Controls.Move.IntValue.Y > 0); // if on top of a ladder and going down
 
-		fsm.AddTransition(States.Attack, States.Climbing, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && Controls.Move.IntValue.Y < 0); // can cancel attack and grab climbable
+		fsm.AddTransition(States.Attack, States.EnterClimbable, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && Controls.Move.IntValue.Y < 0); // can cancel attack and grab climbable
 
+		fsm.AddTransition(States.ClimbingIdle, States.Climbing, condition: () => !grounded && MathF.Abs(Controls.Move.IntValue.Y) > 0);
+		fsm.AddTransition(States.ClimbingIdle, States.Airborne, condition: () => !grounded && Controls.Jump.Down && Controls.Move.IntValue.Y > 0);  // Step down
+
+		fsm.AddTransition(States.Climbing, States.ClimbingIdle, condition: () => !grounded && Velocity.Y == 0 && Controls.Move.IntValue.Y == 0);
 		fsm.AddTransition(States.Climbing, States.Airborne, condition: () => !grounded && Controls.Jump.Down && Controls.Move.IntValue.Y > 0);  // Step down
-		fsm.AddTransition(States.Climbing, States.Normal, condition: () => grounded && (MathF.Abs(Controls.Move.IntValue.X) > 0 || Controls.Move.IntValue.Y > 0));  // in the ground and pressing down or moving
+		fsm.AddTransition(States.Climbing, States.Normal, condition: () => grounded && Controls.Move.IntValue.Y >= 0 && (MathF.Abs(Controls.Move.IntValue.X) > 0 || Controls.Move.IntValue.Y > 0));  // in the ground and pressing down or moving, but not moving up
 
 		fsm.AddTransition(States.Airborne, States.Normal, condition: () => grounded);
 		fsm.AddTransition(States.Airborne, States.Attack, condition: () => Controls.Attack.ConsumePress());
-		fsm.AddTransition(States.Airborne, States.Climbing, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && Controls.Move.IntValue.Y < 0);
+		fsm.AddTransition(States.Airborne, States.EnterClimbable, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && Controls.Move.IntValue.Y < 0);
 
 		// Add triggers
 		fsm.AddAnyTrigger("Normal", States.Normal);
-		fsm.AddAnyTrigger("Climbing>", States.Climbing);
+		fsm.AddAnyTrigger("Climbing", States.Climbing);
+		fsm.AddAnyTrigger("ClimbingIdle", States.ClimbingIdle);
+		fsm.AddAnyTrigger("EnterClimbable", States.EnterClimbable);
 		fsm.AddAnyTrigger("Airborne", States.Airborne);
 		fsm.AddAnyTrigger("Hurt", States.Hurt);
 
@@ -164,6 +197,8 @@ public class Player : Actor
 
 	public override void Update()
 	{
+		if(IsNetworkGhost) Velocity = Vector2.Zero;
+
 		base.Update();
 
 		// update grounded state
@@ -172,7 +207,12 @@ public class Player : Actor
 			Squish = new Vector2(1.5f, 0.70f);
 		grounded = nowGrounded;
 
-		fsm.Update();
+		if(!IsNetworkGhost)
+			fsm.Update();
+		else	// with network players we don't want to run the fsm update, to avoid local transitions, we just want the state logics
+			fsm.CurrentState?.OnUpdate?.Invoke();
+		
+		// if(IsNetworkGhost) System.Console.WriteLine(fsm.CurrentState);
 
 		if (ducking)
 			Hitbox = new(new RectInt(-4, -6, 8, 6));
@@ -189,10 +229,10 @@ public class Player : Actor
 		}
 
 		// gravity
-		if (!grounded && fsm.CurrentState != States.Climbing && fsm.CurrentState != States.LandOnClimbable)
+		if (!grounded && !IsClimbing)
 		{
 			float grav = Gravity;
-			if (fsm.CurrentState == States.Airborne && MathF.Abs(Velocity.Y) < 20 && Controls.Jump.Down)
+			if (fsm.CurrentStateKey == States.Airborne && MathF.Abs(Velocity.Y) < 20 && Controls.Jump.Down)
 				grav *= 0.40f;	// air momentum at the peak of the jump
 			Velocity.Y += grav * Time.Delta;
 		}
@@ -202,11 +242,11 @@ public class Player : Actor
 		{
 			if (Position.X > Game.Bounds.Right && !Game.Transition(Point2.Right))
 			{
-				Position.X = Game.Bounds.Right;
+				Position = new (Game.Bounds.Right, Position.Y);
 			}
 			else if (Position.X < Game.Bounds.Left && !Game.Transition(Point2.Left))
 			{
-				Position.X = Game.Bounds.Left;
+				Position = new (Game.Bounds.Left, Position.Y);
 			}
 			else if (Position.Y > Game.Bounds.Bottom + 12 && !Game.Transition(Point2.Down))
 			{
@@ -218,7 +258,7 @@ public class Player : Actor
 				if (Game.Transition(Point2.Up))
 					Velocity.Y = -150;
 				else
-					Position.Y = Game.Bounds.Top;
+					Position = new (Position.X, Game.Bounds.Top);
 			}
 		}
 
@@ -229,6 +269,7 @@ public class Player : Actor
 		stateDuration += Time.Delta;
 	}
 
+	// TO DO ducking, moving and idling should be different states to sync well
 	public void NormalState()
 	{
 		// update ducking state
@@ -263,7 +304,7 @@ public class Player : Actor
 				Velocity.X = Calc.Approach(Velocity.X, 0, Friction * Time.Delta);
 
 			// Facing
-			if (input != 0)
+			if (!IsNetworkGhost && input != 0)
 				Facing = input;
 		}
 
@@ -310,16 +351,25 @@ public class Player : Actor
 		}
 	}
 
+	public void ClimbingIdleState()
+	{
+		if (Controls.Jump.ConsumePress())
+		{
+			StartJump();
+		}
+	}
+
 	public void ClimbingState()
 	{
+		if(IsNetworkGhost) return;
 		// vertical movement
 		{
 			var input = Controls.Move.IntValue.Y;
 
-			if (MathF.Abs(input) > 0)
-				Play("climb");
-			else
-				Play("climb_idle");
+			// if (MathF.Abs(input) > 0)
+			// 	Play("climb");
+			// else
+			// 	Play("climb_idle");
 
 			// Climbing acceleration
 			Velocity.Y += input * 100 * Time.Delta;

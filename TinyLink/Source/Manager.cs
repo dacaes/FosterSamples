@@ -7,9 +7,50 @@ namespace TinyLink;
 
 class Program
 {
-	public static void Main()
+	public static void Main(string[] args)
 	{
-		using var manager = new Manager();
+		bool isHost;
+		
+		if (args.Length > 0)
+		{
+			if (args[0].ToLower() == "host")
+			{
+				isHost = true;
+			}
+			else if (args[0].ToLower() == "client")
+			{
+				isHost = false;
+			}
+			else
+			{
+				Console.WriteLine("Invalid argument. Use 'host' or 'client'.");
+				return;
+			}
+		}
+		else
+		{
+			// Interactive mode if no args provided
+			Console.WriteLine("[0] Host");
+			Console.WriteLine("[1] Client");
+			Console.WriteLine("[*] Exit with any other key");
+
+			var key = Console.ReadKey(true);
+
+			switch (key.Key)
+			{
+				case ConsoleKey.D0:
+					isHost = true;
+					break;
+				case ConsoleKey.D1:
+					isHost = false;
+					break;
+				default:
+					Console.WriteLine("Exiting...");
+					return;
+			}
+		}
+		
+		using var manager = new Manager(isHost);
 		manager.Run();
 	}
 }
@@ -19,6 +60,10 @@ class Program
 /// </summary>
 public class Manager : App
 {
+	#region Networking
+    public bool IsHost {get; private set;}
+	#endregion
+
 	private const float Scale = 3.0f;
 	private const float ButtonSize = 24;
 	private const float ButtonSpacing = 2;
@@ -136,16 +181,19 @@ public class Manager : App
 	private char tileTypePlacing;
 	private bool tilePlacing;
 
-	public Manager() : base(new AppConfig()
+	public Manager(bool isHost) : base(new AppConfig()
 	{
 		ApplicationName = "TinyLink",
-		WindowTitle = "TinyLink",
+		WindowTitle = isHost ? "TinyLink - Host" : "TinyLink - Client",
 		Width = 1280,
 		Height = 720,
 		Resizable = true
 	})
 	{
 		batcher = new(GraphicsDevice);
+		#region Networking
+		IsHost = isHost;
+		#endregion
 	}
 
 	protected override void Startup()

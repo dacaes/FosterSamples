@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Numerics;
 using Foster.Framework;
 
@@ -18,6 +17,11 @@ public class Actor
 		Rope = 1 << 5,
 		Ladder = 1 << 6
 	}
+
+	#region Networking
+    public int id = -1;	//-1 == not assigned
+	public bool IsNetworkGhost {get; set;} = false;
+	#endregion
 
 	public Game Game = null!;
 	public Point2 Position;

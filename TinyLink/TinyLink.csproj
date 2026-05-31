@@ -12,5 +12,8 @@
   <ItemGroup>
     <PackageReference Include="FosterFramework" Version="0.3.0" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="LiteNetLib" Version="2.1.4" />
+  </ItemGroup>
 
 </Project>

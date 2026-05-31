@@ -1,4 +1,4 @@
-class State<TState>
+public class State<TState>
 {
 	public Action? OnEnter { get; set; }
 	public Action? OnUpdate { get; set; }
@@ -36,7 +36,7 @@ class Transition<TState>
 	}
 }
 
-class StateMachine<TState> where TState : Enum
+public class StateMachine<TState> where TState : Enum
 {
 	public Action? OnAnyEnter { get; set; } // Invoked after specific state OnEnter
 	public Action? OnAnyExit { get; set; } // Invoked after specific state OnExit
@@ -151,6 +151,6 @@ class StateMachine<TState> where TState : Enum
 		_currentState?.OnUpdate?.Invoke();
 	}
 
-	public TState CurrentState => _currentStateKey
-	?? throw new InvalidOperationException("FSM has no current state set.");
+	public TState CurrentStateKey => _currentStateKey ?? throw new InvalidOperationException("FSM has no current state set.");
+	public State<TState> CurrentState => _currentState ?? throw new InvalidOperationException("FSM has no current state set.");
 }
