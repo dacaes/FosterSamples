@@ -13,7 +13,6 @@ public partial class Player : Actor
 		EnterClimbable,
 		LandOnClimbable,
 		Climbing,
-		ClimbingIdle,
 		Airborne,
 		Attack,
 		Hurt,
@@ -45,8 +44,9 @@ public partial class Player : Actor
 	private bool attackImpulseOpportunityConsumed = false;
 
 	public StateMachine<States> fsm = new();
-	public bool IsClimbing => fsm.CurrentState is States.Climbing or States.ClimbingIdle or States.LandOnClimbable or States.EnterClimbable;
+	public bool IsClimbing => fsm.CurrentState is States.Climbing or States.LandOnClimbable or States.EnterClimbable;
 	public bool IsDucking => fsm.CurrentState is States.Ducking;
+	public override bool Moving => IsNetworkGhost ? NetworkMoving : Velocity.LengthSquared() > 0.01f || (MathF.Abs(Game.Controls.Move.IntValue.Y) > 0) || (MathF.Abs(Game.Controls.Move.IntValue.X) > 0);
 
 	public Player()
 	{
@@ -97,26 +97,14 @@ public partial class Player : Actor
 						Position = ladder.Position + new Point2(4, 6);
 					}
 				}
-				Play("climb_idle");
 				Stop();
 
-				if(MathF.Abs(Controls.Move.IntValue.Y) > 0)
+				if(Moving)
 					fsm.ActivateTrigger("Climbing");
 				else
 					fsm.ActivateTrigger("ClimbingIdle");
 			}
-		));
-
-		//ClimbingIdle
-		fsm.AddState(States.ClimbingIdle, new State<States>(
-			onEnter: () =>
-			{
-				Play("climb_idle");
-				Stop();
-			},
-			onUpdate: () => ClimbingIdleState()
-		));
-		
+		));		
 
 		// Climbing
 		fsm.AddState(States.Climbing, new State<States>(
@@ -195,10 +183,6 @@ public partial class Player : Actor
 
 		fsm.AddTransition(States.Attack, States.EnterClimbable, condition: () => OverlapsAny(Masks.Rope | Masks.Ladder) && Controls.Move.IntValue.Y < 0); // can cancel attack and grab climbable
 
-		fsm.AddTransition(States.ClimbingIdle, States.Climbing, condition: () => !grounded && MathF.Abs(Controls.Move.IntValue.Y) > 0);
-		fsm.AddTransition(States.ClimbingIdle, States.Airborne, condition: () => !grounded && Controls.Jump.Down && Controls.Move.IntValue.Y > 0);  // Step down
-
-		fsm.AddTransition(States.Climbing, States.ClimbingIdle, condition: () => !grounded && Velocity.Y == 0 && Controls.Move.IntValue.Y == 0);
 		fsm.AddTransition(States.Climbing, States.Airborne, condition: () => !grounded && Controls.Jump.Down && Controls.Move.IntValue.Y > 0);  // Step down
 		fsm.AddTransition(States.Climbing, States.Normal, condition: () => grounded && Controls.Move.IntValue.Y >= 0 && (MathF.Abs(Controls.Move.IntValue.X) > 0 || Controls.Move.IntValue.Y > 0));  // in the ground and pressing down or moving, but not moving up
 
@@ -209,7 +193,6 @@ public partial class Player : Actor
 		// Add triggers based global transitions
 		fsm.AddGlobalTransition(States.Normal, trigger: "Normal");
 		fsm.AddGlobalTransition(States.Climbing, trigger: "Climbing");
-		fsm.AddGlobalTransition(States.ClimbingIdle, trigger: "ClimbingIdle");
 		fsm.AddGlobalTransition(States.EnterClimbable, trigger: "EnterClimbable");
 		fsm.AddGlobalTransition(States.Airborne, trigger: "Airborne");
 		fsm.AddGlobalTransition(States.Hurt, trigger: "Hurt");

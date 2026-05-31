@@ -96,19 +96,14 @@ public partial class Player : Actor
 				Velocity.X = Calc.Approach(Velocity.X, MathF.Sign(Velocity.X) * maxspd, 2000 * Time.Delta);
 		}
 	}
-
-	public void ClimbingIdleState()
-	{
-        if(IsNetworkGhost) return;
-
-		if (Controls.Jump.ConsumePress())
-		{
-			StartJump();
-		}
-	}
-
+    
 	public void ClimbingState()
 	{
+        if (Moving)
+			Play("climb");
+		else
+			Play("climb_idle");
+
 		if(IsNetworkGhost) return;
         
 		// vertical movement

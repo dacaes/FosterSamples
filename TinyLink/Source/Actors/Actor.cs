@@ -22,7 +22,7 @@ public class Actor
     public byte networkId = 255;	//255 == not assigned
 	public bool IsNetworkGhost {get; set;} = false;
 	public bool NetworkMoving {get; set;} = false;
-	public bool Moving => IsNetworkGhost ? NetworkMoving : Velocity.LengthSquared() > 0.01f;
+	public virtual bool Moving => IsNetworkGhost ? NetworkMoving : Velocity.LengthSquared() > 0.01f;
 	#endregion
 
 	public Game Game = null!;
