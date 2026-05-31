@@ -7,8 +7,8 @@ namespace GameNetworking;
 public partial class GameClient : NetworkManager
 {
     private NetPeer _serverPeer = null!;
-    protected int _localPlayerId = -1;
-    public override int LocalPlayerId {get => _localPlayerId; protected set => _localPlayerId = value;}
+    protected byte _localPlayerId = 255; //255 is not assigned
+    public override byte LocalPlayerId {get => _localPlayerId; protected set => _localPlayerId = value;}
 
     public static GameClient RunClient(Game game)
     {

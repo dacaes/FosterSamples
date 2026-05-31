@@ -1,4 +1,3 @@
-using System.Reflection.Metadata.Ecma335;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using TinyLink;
@@ -7,10 +6,10 @@ namespace GameNetworking;
 
 public partial class GameHost : NetworkManager
 {
-    private int _nextPlayerId = 1;
-    private const int MaxPlayers = 32;
-    private const int HostPlayerId = 0;
-	public override int LocalPlayerId {get => HostPlayerId; protected set {}}   // no set, it is a constant value for Host
+    private byte _nextPlayerId = 1;
+    private const byte MaxPlayers = 32; // never more than byte limit -1 (255 is considered an unset id)
+    private const byte HostPlayerId = 0;
+	public override byte LocalPlayerId {get => HostPlayerId; protected set {}}   // no set, it is a constant value for Host
 
     protected Dictionary<int, int> _peerIdToPlayerId = new Dictionary<int, int>(); // maps peer.Id to playerId
 
@@ -71,7 +70,7 @@ public partial class GameHost : NetworkManager
 
     private void OnPeerConnected(NetPeer peer)
     {
-        int playerId = _nextPlayerId++;
+        byte playerId = _nextPlayerId++;
         
         var newPlayer = new PlayerData
         {

@@ -19,7 +19,7 @@ public class Actor
 	}
 
 	#region Networking
-    public int networkId = -1;	//-1 == not assigned
+    public byte networkId = 255;	//255 == not assigned
 	public bool IsNetworkGhost {get; set;} = false;
 	#endregion
 

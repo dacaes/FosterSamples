@@ -50,7 +50,7 @@ public struct Point2Payload : ISerializable<Point2Payload>
 
 public struct PlayerData : ISerializable<PlayerData>
 {
-    public int playerId;
+    public byte playerId;
     public Point2Payload positionPayload;
     public bool facing;
 	public byte state;
@@ -85,7 +85,7 @@ public struct PlayerData : ISerializable<PlayerData>
     {
         return new PlayerData
         {
-            playerId = reader.GetInt(),
+            playerId = reader.GetByte(),
             positionPayload = Point2Payload.Deserialize(reader),
             facing = reader.GetBool(),
             state = reader.GetByte()
@@ -95,7 +95,7 @@ public struct PlayerData : ISerializable<PlayerData>
 
 public struct PositionUpdateMessage : ISerializable<PositionUpdateMessage>
 {
-    public int playerId;
+    public byte playerId;
     public Point2Payload positionPayload;
 
     public Point2 position
@@ -126,7 +126,7 @@ public struct PositionUpdateMessage : ISerializable<PositionUpdateMessage>
     {
         return new PositionUpdateMessage
         {
-            playerId = reader.GetInt(),
+            playerId = reader.GetByte(),
             positionPayload = Point2Payload.Deserialize(reader)
         };
     }
@@ -134,7 +134,7 @@ public struct PositionUpdateMessage : ISerializable<PositionUpdateMessage>
 
 public struct StateUpdateMessage : ISerializable<StateUpdateMessage>
 {
-    public int playerId;
+    public byte playerId;
     public byte state;
 
     public void Serialize(NetDataWriter writer)
@@ -147,7 +147,7 @@ public struct StateUpdateMessage : ISerializable<StateUpdateMessage>
     {
         return new StateUpdateMessage
         {
-            playerId = reader.GetInt(),
+            playerId = reader.GetByte(),
             state = reader.GetByte()
         };
     }
@@ -155,7 +155,7 @@ public struct StateUpdateMessage : ISerializable<StateUpdateMessage>
 
 public struct FacingUpdateMessage : ISerializable<FacingUpdateMessage>
 {
-    public int playerId;
+    public byte playerId;
     public bool facing;
 
     public void Serialize(NetDataWriter writer)
@@ -168,7 +168,7 @@ public struct FacingUpdateMessage : ISerializable<FacingUpdateMessage>
     {
         return new FacingUpdateMessage
         {
-            playerId = reader.GetInt(),
+            playerId = reader.GetByte(),
             facing = reader.GetBool()
         };
     }

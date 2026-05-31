@@ -7,7 +7,7 @@ namespace GameNetworking;
 
 public partial class GameClient
 {
-    public Action<int>? OnHandleAssignedPlayerId;
+    public Action<byte>? OnHandleAssignedPlayerId;
 
      private void HandleAllPlayersSnapshot(NetPacketReader reader)
     {
@@ -27,7 +27,7 @@ public partial class GameClient
 
     private void HandleAssignedPlayerId(NetPacketReader reader)
     {
-        int id = reader.GetInt();
+        byte id = reader.GetByte();
         LocalPlayerId = id;
         Console.WriteLine($"[CLIENT] Assigned local player ID: {LocalPlayerId}");
         OnHandleAssignedPlayerId?.Invoke(LocalPlayerId);

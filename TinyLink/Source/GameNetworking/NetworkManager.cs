@@ -12,7 +12,7 @@ public abstract partial class NetworkManager
     public IReadOnlyDictionary<int, PlayerData> PlayersData => _playersData;
     public Dictionary<int, Player> NetworkPlayers {get; protected set;} = new();
     private Game game;
-    public abstract int LocalPlayerId {get; protected set;}
+    public abstract byte LocalPlayerId {get; protected set;}
 
 
 
