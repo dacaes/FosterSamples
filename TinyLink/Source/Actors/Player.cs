@@ -1,5 +1,6 @@
 using System.Numerics;
 using Foster.Framework;
+using GameNetworking;
 using static Teca.Audio;
 
 namespace TinyLink;
@@ -284,6 +285,38 @@ public partial class Player : Actor
 		fsm.ActivateTrigger("Hurt");
 		Health--;
 	}
+
+	#region Networking
+	public override void NetworkSerialize()
+	{
+		if (IsNetworkGhost || !NetworkManager.Instance.PlayersData.ContainsKey(NetworkId))
+			return;
+
+		PlayerData player = new PlayerData()
+		{
+			playerId = NetworkId,
+			position = Position,
+			Facing = Facing,
+			Moving = Moving,
+			state = fsm.CurrentState
+		};
+
+		NetworkManager.Instance.PlayersData[NetworkId] = player;
+
+        NetworkManager.Instance.BroadcastUpdate(MessageType.PlayerUpdate, player, null);
+	}
+
+	public override void NetworkDeserialize()
+	{
+		if(!NetworkManager.Instance.PlayersData.TryGetValue(NetworkId, out var playerData))
+			return;
+
+		Position = playerData.position;
+		Facing = playerData.Facing;
+		NetworkMoving = playerData.Moving;
+        fsm.SetState(playerData.state);
+	}
+	#endregion
 
 #if DEBUG
 	RectInt? attackHitbox = null;

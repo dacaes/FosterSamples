@@ -27,12 +27,15 @@ public partial class GameHost : NetworkManager
 
     public GameHost(Game game, int port = 9050) : base(game)
     {
-        _playersData[LocalPlayerId] = new PlayerData
+        var myPlayerData = new PlayerData
         {
             playerId = LocalPlayerId,
             positionPayload = new Point2Payload(0, 0),
-            state = (int) Player.States.Start
+            state = Player.States.Start
         };
+
+        PlayersData.Add(LocalPlayerId, myPlayerData);
+        
         Console.WriteLine($"[HOST] Local player created with ID {LocalPlayerId}");
 
         if (_netManager.Start(port))
@@ -55,7 +58,7 @@ public partial class GameHost : NetworkManager
 
     private void OnConnectionRequest(ConnectionRequest request)
     {
-        if (_playersData.Count < MaxPlayers)
+        if (PlayersData.Count < MaxPlayers)
         {
             request.AcceptIfKey("game");
             Console.WriteLine($"[HOST] Connection request accepted");
@@ -71,16 +74,17 @@ public partial class GameHost : NetworkManager
     {
         byte playerId = _nextPlayerId++;
         
-        var newPlayer = new PlayerData
+        var playerData = new PlayerData
         {
             playerId = playerId,
             positionPayload = new Point2Payload(0, 0),
-            state = (int) Player.States.Start
+            state = Player.States.Start
         };
         
-        _playersData[playerId] = newPlayer;
+        PlayersData.Add(playerId, playerData);
         _peerIdToPlayerId[peer.Id] = playerId;  // Track the peer-to-player mapping
-        Console.WriteLine($"[HOST] Player {playerId} connected (Total: {_playersData.Count})");
+        
+        Console.WriteLine($"[HOST] Player {playerId} connected (Total: {PlayersData.Count})");
         // send assigned id explicitly, then send snapshot
         var idWriter = new NetDataWriter();
         idWriter.Put((byte)MessageType.AssignedPlayerId);
@@ -88,7 +92,7 @@ public partial class GameHost : NetworkManager
         peer.Send(idWriter, DeliveryMethod.ReliableOrdered);
 
         SendAllPlayersSnapshot(peer);
-        BroadcastPlayerJoined(newPlayer, peer);
+        BroadcastPlayerJoined(playerData, peer);
     }
 
     private void OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
@@ -96,10 +100,10 @@ public partial class GameHost : NetworkManager
         // Use the peer-to-player mapping to find the player
         if (_peerIdToPlayerId.TryGetValue(peer.Id, out int playerId))
         {
-            _playersData.Remove(playerId);
+            PlayersData.Remove(playerId);
             NetworkPlayers.Remove(playerId);
             _peerIdToPlayerId.Remove(peer.Id);
-            Console.WriteLine($"[HOST] Player {playerId} disconnected (Total: {_playersData.Count})");
+            Console.WriteLine($"[HOST] Player {playerId} disconnected (Total: {PlayersData.Count})");
             BroadcastPlayerLeft(playerId);
         }
     }

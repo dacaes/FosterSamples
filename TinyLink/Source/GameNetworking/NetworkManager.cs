@@ -8,20 +8,21 @@ public abstract partial class NetworkManager
 {
     protected NetManager _netManager;
     protected EventBasedNetListener _listener;
-    protected Dictionary<int, PlayerData> _playersData;
-    public IReadOnlyDictionary<int, PlayerData> PlayersData => _playersData;
-    public Dictionary<int, Player> NetworkPlayers {get; protected set;} = new();
     public readonly Game Game;
+    public Dictionary<int, PlayerData> PlayersData {get; set;}
+    public Dictionary<int, Player> NetworkPlayers {get; protected set;} = new();
     public abstract byte LocalPlayerId {get; protected set;}
 
-
+    private static NetworkManager _networkManager = null!;
+    public static NetworkManager Instance => _networkManager;
 
     public NetworkManager(Game game)
     {
-        _playersData = new Dictionary<int, PlayerData>();
+        PlayersData = new Dictionary<int, PlayerData>();
         _listener = new EventBasedNetListener();
         _netManager = new NetManager(_listener);
         Game = game;
+        _networkManager = this;
 
         SetupListeners();
     }
@@ -29,7 +30,7 @@ public abstract partial class NetworkManager
     protected abstract void SetupListeners();
 
     protected abstract void OnNetworkReceive(NetPeer peer, NetPacketReader reader, byte channel, DeliveryMethod deliveryMethod);
-    protected abstract void BroadcastUpdate<T>(MessageType messageType, T update,  NetPeer? excludePeer = null, DeliveryMethod deliveryMethod = DeliveryMethod.Sequenced) 
+    public abstract void BroadcastUpdate<T>(MessageType messageType, T update,  NetPeer? excludePeer = null, DeliveryMethod deliveryMethod = DeliveryMethod.Sequenced) 
         where T : struct, ISerializable<T>;
 
     public virtual void Poll()

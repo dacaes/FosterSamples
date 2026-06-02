@@ -1,9 +1,10 @@
 using System.Numerics;
 using Foster.Framework;
+using GameNetworking;
 
 namespace TinyLink;
 
-public class Actor
+public class Actor : INetworkSerializable
 {
 	[Flags]
 	public enum Masks
@@ -19,7 +20,7 @@ public class Actor
 	}
 
 	#region Networking
-    public byte networkId = 255;	//255 == not assigned
+    public byte NetworkId {get;set;} = 255;	//255 == not assigned
 	public bool IsNetworkGhost {get; set;} = false;
 	public bool NetworkMoving {get; set;} = false;
 	public virtual bool Moving => IsNetworkGhost ? NetworkMoving : Velocity.LengthSquared() > 0.01f;
@@ -64,6 +65,11 @@ public class Actor
 	private float animationTime = 0;
 	private bool animationLooping = true;
 	private float hitCooldown = 0;
+
+	#region Networking
+	public virtual void NetworkSerialize() {}
+	public virtual void NetworkDeserialize() {}
+	#endregion
 
 	/// <summary>
 	/// Plays an Animation from our current Sprite, if it exists

@@ -7,8 +7,8 @@ namespace TinyLink;
 public class Game
 {
 	#region Networking
-    private NetworkManager networkManager;
-    private bool isHost;
+    public readonly NetworkManager NetworkManager;
+    public bool IsHost => Manager.IsHost;
     public Player localPlayer = null!;
 	#endregion
 
@@ -48,17 +48,15 @@ public class Game
 	public Game(Manager manager, Point2 start)
 	{
 		#region Networking
-		isHost = manager.IsHost;
-
-        if(isHost)
+        if(manager.IsHost)
 		{
-			networkManager = GameHost.RunHost(this, manager.Port);
+			NetworkManager = GameHost.RunHost(this, manager.Port);
 		}
 		else
 		{
 			var client = GameClient.RunClient(this, manager.Port, manager.Ip);
-			client.OnHandleAssignedPlayerId += (id) => localPlayer.networkId = id;
-			networkManager = client;
+			client.OnHandleAssignedPlayerId += (id) => localPlayer.NetworkId = id;
+			NetworkManager = client;
 		}
 		#endregion
 
@@ -81,7 +79,7 @@ public class Game
 			return;
 
 		#region Networking
-		networkManager.Poll();
+		NetworkManager.Poll();
 		#endregion
 
 		// Run Game normally when not moving to a new room
@@ -116,7 +114,7 @@ public class Game
 					{
 						if(localPlayer != player)
 						{
-							player.networkId = networkManager.LocalPlayerId;
+							player.NetworkId = NetworkManager.LocalPlayerId;
 							localPlayer = player;
 						}
 					}
@@ -124,18 +122,21 @@ public class Game
 				}
 
 				#region Networking
-				foreach (var player in networkManager.NetworkPlayers.Values)
+				foreach (var player in NetworkManager.NetworkPlayers.Values)
 				{
 					// System.Console.WriteLine("network peer id: " + player.id);
 					player.Update();
 				}
 
-				// foreach (var player in networkManager.PlayersData.Values)
+				// foreach (var player in NetworkManager.PlayersData.Values)
 				// {
-				// 	if(isHost) Console.Write("[Host] -> ");
+				// 	if(IsHost) Console.Write("[Host] -> ");
 				// 	else Console.Write("[Client] -> ");
 				// 	Console.WriteLine($"player data id: {player.playerId} state: {(Player.States)player.state}");
 				// }
+
+				// if(IsHost) Console.WriteLine($"[Host] -> localPlayerId {localPlayer.NetworkId}");
+				// else Console.WriteLine($"[Client] -> localPlayerId {localPlayer.NetworkId}");
 				#endregion
 
 				// screen shaking
@@ -164,13 +165,20 @@ public class Game
 			nextRoom = null;
 			Hitstun(0.1f);
 		}
-
-		#region Networking
-		networkManager.UpdateLocalPlayer(localPlayer.Position, localPlayer.fsm.CurrentState, localPlayer.Facing, localPlayer.Moving);
-		// if(isHost) Console.WriteLine($"[Host] -> localPlayerId {localPlayer.id}");
-		// else Console.WriteLine($"[Client] -> localPlayerId {localPlayer.id}");
-		#endregion
 	}
+
+	# region Networking
+	/// <summary>
+	/// Network Sync
+	/// </summary>
+	public void NetworkSerialize()
+	{
+		for (int i = 0; i < Actors.Count; i ++)
+		{
+			Actors[i].NetworkSerialize();
+		}
+	}
+	#endregion
 
 	public void Render(in RectInt viewport)
 	{
@@ -179,7 +187,7 @@ public class Game
 		Batcher.PushMatrix(-(Point2)Camera + shake);
 
 		#region Networking		
-		rendering.AddRange(networkManager.NetworkPlayers.Values);
+		rendering.AddRange(NetworkManager.NetworkPlayers.Values);
 		#endregion
 
 		// draw actors

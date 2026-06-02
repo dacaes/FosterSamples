@@ -1,5 +1,6 @@
 using Foster.Framework;
 using LiteNetLib.Utils;
+using TinyLink;
 
 namespace GameNetworking;
 
@@ -33,6 +34,15 @@ public interface ISerializable<T> where T : struct
 {
     void Serialize(NetDataWriter writer);
     static abstract T Deserialize(NetDataReader reader);
+}
+
+public interface INetworkSerializable
+{
+    byte NetworkId {get; set;}
+	bool IsNetworkGhost {get; set;}
+
+    virtual void NetworkSerialize(){}
+    virtual void NetworkDeserialize(){}
 }
 
 public struct NetworkFlagsPayload : ISerializable<NetworkFlagsPayload>
@@ -151,7 +161,7 @@ public struct PlayerData : ISerializable<PlayerData>
 {
     public byte playerId;
     public Point2Payload positionPayload;
-	public byte state;
+	public Player.States state;
     public NetworkFlagsPayload flagsPayload;
 
     public Point2 position
@@ -189,7 +199,7 @@ public struct PlayerData : ISerializable<PlayerData>
         writer.Put(playerId);
         positionPayload.Serialize(writer);
         flagsPayload.Serialize(writer);
-        writer.Put(state);
+        writer.Put((byte)state);
     }
 
     public static PlayerData Deserialize(NetDataReader reader)
@@ -199,8 +209,8 @@ public struct PlayerData : ISerializable<PlayerData>
             playerId = reader.GetByte(),
             positionPayload = Point2Payload.Deserialize(reader),
             flagsPayload = NetworkFlagsPayload.Deserialize(reader),
-            state = reader.GetByte()
-        };
+            state = (Player.States)reader.GetByte()
+		};
     }
 }
 
@@ -246,12 +256,12 @@ public struct PositionUpdateMessage : ISerializable<PositionUpdateMessage>
 public struct StateUpdateMessage : ISerializable<StateUpdateMessage>
 {
     public byte playerId;
-    public byte state;
+    public Player.States state;
 
     public void Serialize(NetDataWriter writer)
     {
         writer.Put(playerId);
-        writer.Put(state);
+        writer.Put((byte)state);
     }
 
     public static StateUpdateMessage Deserialize(NetDataReader reader)
@@ -259,7 +269,7 @@ public struct StateUpdateMessage : ISerializable<StateUpdateMessage>
         return new StateUpdateMessage
         {
             playerId = reader.GetByte(),
-            state = reader.GetByte()
+            state = (Player.States)reader.GetByte()
         };
     }
 }

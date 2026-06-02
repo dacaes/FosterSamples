@@ -258,6 +258,7 @@ public class Manager : App
 		{
 			gameEase = Calc.Approach(gameEase, 1.0f, Time.Delta * 4.0f);
 			game.Update();
+			game.NetworkSerialize();
 		}
 		// Show Editor
 		else

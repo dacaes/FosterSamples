@@ -11,15 +11,15 @@ public partial class GameHost
     {
         var writer = new NetDataWriter();
         writer.Put((byte)MessageType.AllPlayersSnapshot);
-        writer.Put(_playersData.Count);
+        writer.Put(PlayersData.Count);
 
-        foreach (var player in _playersData.Values)
+        foreach (var player in PlayersData.Values)
         {
             player.Serialize(writer);
         }
 
         peer.Send(writer, DeliveryMethod.ReliableOrdered);
-        Console.WriteLine($"[HOST] Sent snapshot with {_playersData.Count} players to peer");
+        Console.WriteLine($"[HOST] Sent snapshot with {PlayersData.Count} players to peer");
     }
 
     private void BroadcastPlayerJoined(PlayerData player, NetPeer? excludePeer = null)
@@ -42,8 +42,11 @@ public partial class GameHost
         Console.WriteLine($"[HOST] Broadcasted player {playerId} left");
     }
 
-    protected override void BroadcastUpdate<T>(MessageType messageType, T update, NetPeer? excludePeer = null, DeliveryMethod deliveryMethod = DeliveryMethod.Sequenced)
+    public override void BroadcastUpdate<T>(MessageType messageType, T update, NetPeer? excludePeer = null, DeliveryMethod deliveryMethod = DeliveryMethod.Sequenced)
     {
+        if(_netManager.GetPeersCount(ConnectionState.Connected) == 0)
+            return;
+         
         var writer = new NetDataWriter();
         writer.Put((byte)messageType);
         update.Serialize(writer);
