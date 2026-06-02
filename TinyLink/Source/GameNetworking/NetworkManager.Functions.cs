@@ -26,7 +26,7 @@ public abstract partial class NetworkManager
                     Position = playerData.position,
                     Facing = playerData.Facing,
                     NetworkMoving = playerData.Moving,
-                    Game = game
+                    Game = Game
                 };
                 newPlayer.fsm.SetState((Player.States)playerData.state);
                 NetworkPlayers.Add(playerData.playerId, newPlayer);

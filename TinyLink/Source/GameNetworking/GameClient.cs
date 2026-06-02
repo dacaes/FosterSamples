@@ -10,10 +10,10 @@ public partial class GameClient : NetworkManager
     protected byte _localPlayerId = 255; //255 is not assigned
     public override byte LocalPlayerId {get => _localPlayerId; protected set => _localPlayerId = value;}
 
-    public static GameClient RunClient(Game game)
+    public static GameClient RunClient(Game game, int port, string? ip)
     {
         // Console.WriteLine("Enter server IP (default 127.0.0.1): ");
-        // string? ip = Console.ReadLine();
+        // ip = Console.ReadLine();
         // if (string.IsNullOrWhiteSpace(ip))
         // {
         //     ip = "127.0.0.1";
@@ -21,10 +21,7 @@ public partial class GameClient : NetworkManager
 
         // Console.WriteLine("Enter server port (default 9050): ");
         // string? portInput = Console.ReadLine();
-        // var port = int.TryParse(portInput, out var parsedPort) ? parsedPort : 9050;
-
-        var ip = "127.0.0.1";
-        var port = 9050; 
+        // port = int.TryParse(portInput, out var parsedPort) ? parsedPort : 9050;
 
         Console.WriteLine($"Connecting to {ip}:{port}...\n");
         return new GameClient(game, ip, port);

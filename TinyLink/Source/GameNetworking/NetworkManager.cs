@@ -11,7 +11,7 @@ public abstract partial class NetworkManager
     protected Dictionary<int, PlayerData> _playersData;
     public IReadOnlyDictionary<int, PlayerData> PlayersData => _playersData;
     public Dictionary<int, Player> NetworkPlayers {get; protected set;} = new();
-    private Game game;
+    public readonly Game Game;
     public abstract byte LocalPlayerId {get; protected set;}
 
 
@@ -21,7 +21,7 @@ public abstract partial class NetworkManager
         _playersData = new Dictionary<int, PlayerData>();
         _listener = new EventBasedNetListener();
         _netManager = new NetManager(_listener);
-        this.game = game;
+        Game = game;
 
         SetupListeners();
     }

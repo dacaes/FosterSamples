@@ -52,11 +52,11 @@ public class Game
 
         if(isHost)
 		{
-			networkManager = GameHost.RunHost(this);
+			networkManager = GameHost.RunHost(this, manager.Port);
 		}
 		else
 		{
-			var client = GameClient.RunClient(this);
+			var client = GameClient.RunClient(this, manager.Port, manager.Ip);
 			client.OnHandleAssignedPlayerId += (id) => localPlayer.networkId = id;
 			networkManager = client;
 		}

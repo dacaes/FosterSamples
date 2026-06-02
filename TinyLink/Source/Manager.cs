@@ -10,16 +10,40 @@ class Program
 	public static void Main(string[] args)
 	{
 		bool isHost;
+		string ip = "127.0.0.1";
+		int port = 9050;
 		
 		if (args.Length > 0)
 		{
 			if (args[0].ToLower() == "host")
 			{
 				isHost = true;
+
+				if(args.Length > 1)
+				{
+					port = int.TryParse(args[1], out var parsedPort) ? parsedPort : port;
+				}
 			}
 			else if (args[0].ToLower() == "client")
 			{
 				isHost = false;
+
+				if(args.Length > 1)
+				{
+					if(int.TryParse(args[1], out var parsedPort))
+					{
+						port = parsedPort;
+					}
+					else
+					{
+						ip = System.Net.IPAddress.TryParse(args[1], out var parsedIp) ? parsedIp.ToString() : ip;
+					}
+				}
+
+				if(args.Length > 2)
+				{
+					ip = System.Net.IPAddress.TryParse(args[2], out var parsedIp) ? parsedIp.ToString() : ip;
+				}
 			}
 			else
 			{
@@ -50,7 +74,7 @@ class Program
 			}
 		}
 		
-		using var manager = new Manager(isHost);
+		using var manager = new Manager(isHost, port, ip);
 		manager.Run();
 	}
 }
@@ -62,6 +86,8 @@ public class Manager : App
 {
 	#region Networking
     public bool IsHost {get; private set;}
+	public int Port {get; private set;}
+	public string Ip {get; private set;}
 	#endregion
 
 	private const float Scale = 3.0f;
@@ -181,7 +207,7 @@ public class Manager : App
 	private char tileTypePlacing;
 	private bool tilePlacing;
 
-	public Manager(bool isHost) : base(new AppConfig()
+	public Manager(bool isHost, int port, string ip) : base(new AppConfig()
 	{
 		ApplicationName = "TinyLink",
 		WindowTitle = isHost ? "TinyLink - Host" : "TinyLink - Client",
@@ -193,6 +219,8 @@ public class Manager : App
 		batcher = new(GraphicsDevice);
 		#region Networking
 		IsHost = isHost;
+		Port = port;
+		Ip = ip;
 		#endregion
 	}
 

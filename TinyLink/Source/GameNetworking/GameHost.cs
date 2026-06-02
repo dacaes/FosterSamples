@@ -14,13 +14,12 @@ public partial class GameHost : NetworkManager
     protected Dictionary<int, int> _peerIdToPlayerId = new Dictionary<int, int>(); // maps peer.Id to playerId
 
 
-    public static GameHost RunHost(Game game)
+    public static GameHost RunHost(Game game, int port)
     {
         // Console.WriteLine("Enter port (default 9050): ");
         // string? portInput = Console.ReadLine();
         
-        // var port = int.TryParse(portInput, out var parsedPort) ? parsedPort : 9050;
-        var port = 9050;
+        // port = int.TryParse(portInput, out var parsedPort) ? parsedPort : 9050;
 
         Console.WriteLine($"Host running on port {port}.");
         return new GameHost(game, port);
