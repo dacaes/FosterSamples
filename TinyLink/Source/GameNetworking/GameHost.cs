@@ -7,8 +7,6 @@ namespace GameNetworking;
 public partial class GameHost : NetworkManager
 {
     private byte _nextPlayerId = 1;
-    private const byte MaxPlayers = 32; // never more than byte limit -1 (255 is considered an unset id)
-    private const byte HostPlayerId = 0;
 	public override byte LocalPlayerId {get => HostPlayerId; protected set {}}   // no set, it is a constant value for Host
 
     protected Dictionary<int, int> _peerIdToPlayerId = new Dictionary<int, int>(); // maps peer.Id to playerId
@@ -27,6 +25,7 @@ public partial class GameHost : NetworkManager
 
     public GameHost(Game game, int port = 9050) : base(game)
     {
+        IsHost = true;
         var myPlayerData = new PlayerData
         {
             playerId = LocalPlayerId,
@@ -132,6 +131,16 @@ public partial class GameHost : NetworkManager
             case MessageType.PlayerUpdate:
                 var playerData = HandlePlayerUpdate(reader);
                 BroadcastUpdate(MessageType.PlayerUpdate, playerData, peer);
+                break;
+
+            case MessageType.ActorDied:
+                var actorDied = HandleActorDied(reader);
+                BroadcastUpdate(MessageType.ActorDied, actorDied, peer);
+                break;
+
+            case MessageType.ActorData:
+                var actorData = HandleActorData(reader);
+                BroadcastUpdate(MessageType.ActorData, actorData, peer);
                 break;
         }
 

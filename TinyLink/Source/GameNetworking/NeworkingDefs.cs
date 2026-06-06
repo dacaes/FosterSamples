@@ -14,6 +14,9 @@ public enum MessageType : byte
     PositionUpdate,
     StateUpdate,
     FlagsUpdate,
+    ActorDied,
+    ActorData
+    // TODO, handle all actors snapshot from the room you join when client joins
 }
 
 [Flags]
@@ -38,8 +41,9 @@ public interface ISerializable<T> where T : struct
 
 public interface INetworkSerializable
 {
-    byte NetworkId {get; set;}
+    byte NetId {get; set;}
 	bool IsNetworkGhost {get; set;}
+    bool AutoNetworkSync {get; set;}
 
     virtual void NetworkSerialize(){}
     virtual void NetworkDeserialize(){}
@@ -155,6 +159,39 @@ public struct Point2Payload : ISerializable<Point2Payload>
             Y = reader.GetInt()
         };
     }
+}
+
+public struct RoomCell : ISerializable<RoomCell>
+{
+    public sbyte X;
+    public sbyte Y;
+
+    public RoomCell(Room room)
+    {
+        X = (sbyte)room.Cell.X;
+        Y = (sbyte)room.Cell.Y;
+    }
+
+    public RoomCell(sbyte x, sbyte y)
+    {
+        X = x;
+        Y = y;
+    }
+
+	public void Serialize(NetDataWriter writer)
+	{
+		writer.Put(X);
+        writer.Put(Y);
+	}
+	
+    public static RoomCell Deserialize(NetDataReader reader)
+	{
+        return new RoomCell
+        {
+		    X = reader.GetSByte(),
+            Y = reader.GetSByte()
+        };
+	}
 }
 
 public struct PlayerData : ISerializable<PlayerData>
@@ -304,6 +341,71 @@ public struct FlagsUpdateMessage : ISerializable<FlagsUpdateMessage>
         {
             playerId = reader.GetByte(),
             flagsPayload = NetworkFlagsPayload.Deserialize(reader),
+        };
+    }
+}
+
+public struct ActorDied : ISerializable<ActorDied>
+{
+    public RoomCell roomCell;
+    public byte netId;
+
+	public void Serialize(NetDataWriter writer)
+	{
+        roomCell.Serialize(writer);
+		writer.Put(netId);
+	}
+
+	public static ActorDied Deserialize(NetDataReader reader)
+	{
+		return new ActorDied
+        {
+            roomCell = RoomCell.Deserialize(reader),
+            netId = reader.GetByte(),
+        };
+	}
+}
+
+public struct ActorData : ISerializable<ActorData>
+{
+    private const ushort IdMask = 0x00FF;
+    private const ushort AliveMask = 0x0100;
+    private ushort data;
+    public RoomCell roomCell;
+
+    public byte NetId
+    {
+        get => (byte)(data & IdMask);
+        set
+        {
+            data = (ushort)((data & ~IdMask) | (value & IdMask));
+        }
+    }
+
+    public bool Alive
+    {
+        get => (data & AliveMask) != 0;
+        set
+        {
+            if (value)
+                data |= AliveMask;
+            else
+                data = (ushort)(data & ~AliveMask);
+        }
+    }
+
+    public void Serialize(NetDataWriter writer)
+    {
+        roomCell.Serialize(writer);
+        writer.Put(data);
+    }
+
+    public static ActorData Deserialize(NetDataReader reader)
+    {
+        return new ActorData
+        {
+            roomCell = RoomCell.Deserialize(reader),
+            data = reader.GetUShort(),
         };
     }
 }

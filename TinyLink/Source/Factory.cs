@@ -12,7 +12,7 @@ public static class Factory
 	/// <summary>
 	/// Used to Spawn an Actor
 	/// </summary>
-	public delegate void SpawnFn(Point2 position, Game game);
+	public delegate void SpawnFn(Room room, Point2 position, Game game);
 
 	/// <summary>
 	/// Used to Place a Tile
@@ -50,12 +50,12 @@ public static class Factory
 			if (sprite == null)
 				return new();
 
-			return new Entry(typeof(T).Name, sprite.Frames[0].Subtexture, sprite.Origin, offset ?? Point2.Zero, (position, game) =>
+			return new Entry(typeof(T).Name, sprite.Frames[0].Subtexture, sprite.Origin, offset ?? Point2.Zero, (room, position, game) =>
 			{
 				if (!exclusive || game.GetFirst<T>() == null) 
 				{
-					var it = game.Create<T>(position);
-					additional?.Invoke(it);
+					var it = game.TryCreate<T>(room, position);
+					if(it != null) additional?.Invoke(it);
 				}
 			});
 		}

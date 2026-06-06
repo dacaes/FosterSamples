@@ -1,3 +1,5 @@
+using System.Linq;
+using System.Runtime.Serialization;
 using Foster.Framework;
 using LiteNetLib;
 using TinyLink;
@@ -16,7 +18,7 @@ public abstract partial class NetworkManager
         {
             var newPlayer = new Player
             {
-                NetworkId = playerData.playerId,
+                NetId = playerData.playerId,
                 IsNetworkGhost = true,
                 Position = playerData.position,
                 Facing = playerData.Facing,
@@ -85,5 +87,66 @@ public abstract partial class NetworkManager
         DeserializePlayer(playerData);
 
         return facingUpdate;
+    }
+
+        protected ActorDied HandleActorDied(NetPacketReader reader)
+    {
+        var actorDied = ActorDied.Deserialize(reader);
+
+        var actorKey = (actorDied.roomCell, actorDied.netId);
+        if (ActorsData.TryGetValue(actorKey, out var actorData))
+        {
+            actorData.Alive = false;
+            ActorsData[actorKey] = actorData;
+        }
+        else
+        {
+            actorData = new ActorData
+            {
+                Alive = false
+            };
+            ActorsData.Add(actorKey, actorData);
+        }
+
+        for (int i = 0; i < Game.Actors.Count; i++)
+        {
+            if(Game.Actors[i] == null)
+                continue;
+            
+            if (Game.Actors[i].NetId == actorDied.netId)
+            {
+                Game.Actors[i].NetworkDeserialize();
+            }
+        }
+
+        return actorDied;
+    }
+
+    protected ActorData HandleActorData(NetPacketReader reader)
+    {
+        var actorData = ActorData.Deserialize(reader);
+
+        var actorKey = (actorData.roomCell, actorData.NetId);
+        if (ActorsData.ContainsKey(actorKey))
+        {
+			ActorsData[actorKey] = actorData;
+        }
+        else
+        {
+			ActorsData.Add(actorKey, actorData);
+        }
+
+        for (int i = 0; i < Game.Actors.Count; i++)
+        {
+            if(Game.Actors[i] == null)
+                continue;
+            
+            if (Game.Actors[i].NetId == actorData.NetId)
+            {
+                Game.Actors[i].NetworkDeserialize();
+            }
+        }
+
+        return actorData;
     }
 }

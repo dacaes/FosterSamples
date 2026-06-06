@@ -48,6 +48,7 @@ public partial class Player : Actor
 	public bool IsClimbing => fsm.CurrentState is States.Climbing or States.LandOnClimbable;
 	public bool IsDucking => fsm.CurrentState is States.Ducking;
 	public override bool Moving => IsNetworkGhost ? NetworkMoving : Velocity.LengthSquared() > 0.01f || (MathF.Abs(Game.Controls.Move.IntValue.Y) > 0) || (MathF.Abs(Game.Controls.Move.IntValue.X) > 0);
+	public bool Alive => Health > 0;
 
 	public Player()
 	{
@@ -56,6 +57,9 @@ public partial class Player : Actor
 		Mask = Masks.Player;
 		IFrameTime = InvincibleDuration;
 		grounded = true;
+		#region Networking
+		AutoNetworkSync = true;
+		#endregion
 
 		// Normal
 		fsm.AddState(States.Normal, new State<States>(
@@ -249,7 +253,7 @@ public partial class Player : Actor
 		}
 
 		// goto next room
-		if (Health > 0)
+		if (Alive)
 		{
 			if (Position.X > Game.Bounds.Right && !Game.Transition(Point2.Right))
 			{
@@ -289,26 +293,26 @@ public partial class Player : Actor
 	#region Networking
 	public override void NetworkSerialize()
 	{
-		if (IsNetworkGhost || !NetworkManager.Instance.PlayersData.ContainsKey(NetworkId))
+		if (IsNetworkGhost || !NetworkManager.Instance.PlayersData.ContainsKey(NetId))
 			return;
 
-		PlayerData player = new PlayerData()
+		PlayerData playerData = new PlayerData()
 		{
-			playerId = NetworkId,
+			playerId = NetId,
 			position = Position,
 			Facing = Facing,
 			Moving = Moving,
 			state = fsm.CurrentState
 		};
 
-		NetworkManager.Instance.PlayersData[NetworkId] = player;
+		NetworkManager.Instance.PlayersData[NetId] = playerData;
 
-        NetworkManager.Instance.BroadcastUpdate(MessageType.PlayerUpdate, player, null);
+        NetworkManager.Instance.BroadcastUpdate(MessageType.PlayerUpdate, playerData, null);
 	}
 
 	public override void NetworkDeserialize()
 	{
-		if(!NetworkManager.Instance.PlayersData.TryGetValue(NetworkId, out var playerData))
+		if(!NetworkManager.Instance.PlayersData.TryGetValue(NetId, out var playerData))
 			return;
 
 		Position = playerData.position;

@@ -29,6 +29,8 @@ public partial class GameClient : NetworkManager
 
     public GameClient(Game game, string serverIp, int serverPort) : base(game)
     {
+        IsHost = false;
+        
         // Start the NetManager before attempting to connect
         if (_netManager.Start())
         {
@@ -96,6 +98,14 @@ public partial class GameClient : NetworkManager
             
             case MessageType.FlagsUpdate:
                 HandleFlagsUpdate(reader);
+                break;
+
+            case MessageType.ActorDied:
+                HandleActorDied(reader);
+                break;
+            
+            case MessageType.ActorData:
+                HandleActorData(reader);
                 break;
         }
 

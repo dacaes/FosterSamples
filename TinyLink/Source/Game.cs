@@ -10,6 +10,7 @@ public class Game
     public readonly NetworkManager NetworkManager;
     public bool IsHost => Manager.IsHost;
     public Player localPlayer = null!;
+	public byte netIdCounter = 0;
 	#endregion
 
 	public const int Width = 240;
@@ -42,6 +43,7 @@ public class Game
 	public RectInt Bounds => room?.WorldBounds ?? new();
 	public Point2 Cell => room?.Cell ?? Point2.Zero;
 	public Room? CurrentRoom => room;
+	public RoomCell CurrentRoomCell => nextRoom != null ? new RoomCell(nextRoom) : new RoomCell(room!);
 
 	private bool debugActorHitboxes = false;
 
@@ -55,7 +57,7 @@ public class Game
 		else
 		{
 			var client = GameClient.RunClient(this, manager.Port, manager.Ip);
-			client.OnHandleAssignedPlayerId += (id) => localPlayer.NetworkId = id;
+			client.OnHandleAssignedPlayerId += (id) => localPlayer.NetId = id;
 			NetworkManager = client;
 		}
 		#endregion
@@ -114,7 +116,7 @@ public class Game
 					{
 						if(localPlayer != player)
 						{
-							player.NetworkId = NetworkManager.LocalPlayerId;
+							player.NetId = NetworkManager.LocalPlayerId;
 							localPlayer = player;
 						}
 					}
@@ -135,8 +137,8 @@ public class Game
 				// 	Console.WriteLine($"player data id: {player.playerId} state: {(Player.States)player.state}");
 				// }
 
-				// if(IsHost) Console.WriteLine($"[Host] -> localPlayerId {localPlayer.NetworkId}");
-				// else Console.WriteLine($"[Client] -> localPlayerId {localPlayer.NetworkId}");
+				// if(IsHost) Console.WriteLine($"[Host] -> localPlayerId {localPlayer.NetId}");
+				// else Console.WriteLine($"[Client] -> localPlayerId {localPlayer.NetId}");
 				#endregion
 
 				// screen shaking
@@ -175,7 +177,8 @@ public class Game
 	{
 		for (int i = 0; i < Actors.Count; i ++)
 		{
-			Actors[i].NetworkSerialize();
+			if(Actors[i].AutoNetworkSync)
+				Actors[i].NetworkSerialize();
 		}
 	}
 	#endregion
@@ -260,14 +263,38 @@ public class Game
 		}
 	}
 
+	public T? TryCreate<T>(Room room, Point2? position = null) where T : Actor, new()
+	{
+		bool create = true;
+		
+		if(NetworkManager.Instance.ActorsData.TryGetValue((new RoomCell(room),netIdCounter), out var actorData))
+		{
+			if(!actorData.Alive)
+			{
+				create = false;
+			}
+		}
+		
+		if(create)
+			return Create<T>(position);
+			
+		netIdCounter++;
+		return null;
+	}
+
 	public T Create<T>(Point2? position = null) where T : Actor, new()
 	{
+		bool isPlayer = typeof(T) == typeof(Player);
+
 		var instance = new T
 		{
 			Game = this,
 			Position = position ?? Point2.Zero
 		};
 		instance.Added();
+		
+		if(!isPlayer) instance.NetId = netIdCounter++;
+
 		Actors.Add(instance);
 		return instance;
 	}
@@ -359,6 +386,8 @@ public class Game
 		fg.Mask = Actor.Masks.Solid;
 		fg.Depth = 5;
 
+		netIdCounter = 0;
+
 		// loop over room grid placing objects
 		for (int x = 0; x < Columns; x ++)
 		for (int y = 0; y < Rows; y ++)
@@ -368,10 +397,11 @@ public class Game
 
 			if (Factory.Find(room.Tiles[x, y]) is Factory.Entry entry)
 			{
-				entry.Spawn?.Invoke(at + entry.Offset, this);
+				entry.Spawn?.Invoke(room, at + entry.Offset, this);
 				entry.Tile?.Invoke(tile, fg, bg);
 			}
 		}
+		// TO DO, handle well or remove
 		Create<DecorativeRopeTest>(Point2.Zero);
 	}
 

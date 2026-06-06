@@ -20,8 +20,9 @@ public class Actor : INetworkSerializable
 	}
 
 	#region Networking
-    public byte NetworkId {get;set;} = 255;	//255 == not assigned
+    public byte NetId {get;set;} = 255;	//255 == not assigned
 	public bool IsNetworkGhost {get; set;} = false;
+	public bool AutoNetworkSync {get; set;} = false;
 	public bool NetworkMoving {get; set;} = false;
 	public virtual bool Moving => IsNetworkGhost ? NetworkMoving : Velocity.LengthSquared() > 0.01f;
 	#endregion

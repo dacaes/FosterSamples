@@ -6,19 +6,26 @@ namespace GameNetworking;
 
 public abstract partial class NetworkManager
 {
+    protected const byte MaxPlayers = 3; // never more than byte limit -1 (255 is considered an unset id)
+    protected const byte HostPlayerId = 0;
     protected NetManager _netManager;
     protected EventBasedNetListener _listener;
+    public bool IsHost {get; protected set;}
     public readonly Game Game;
-    public Dictionary<int, PlayerData> PlayersData {get; set;}
+    public Dictionary<int, PlayerData> PlayersData {get; set;} = new();
     public Dictionary<int, Player> NetworkPlayers {get; protected set;} = new();
     public abstract byte LocalPlayerId {get; protected set;}
+
+    public Dictionary<(RoomCell,byte), ActorData> ActorsData {get; set;} = new();
+    public Dictionary<int, Actor> NetworkActors {get; protected set;} = new();
+
+
 
     private static NetworkManager _networkManager = null!;
     public static NetworkManager Instance => _networkManager;
 
     public NetworkManager(Game game)
     {
-        PlayersData = new Dictionary<int, PlayerData>();
         _listener = new EventBasedNetListener();
         _netManager = new NetManager(_listener);
         Game = game;
